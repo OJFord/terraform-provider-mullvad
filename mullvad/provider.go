@@ -18,7 +18,8 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"mullvad_wireguard": resourceMullvadWireguard(),
+			"mullvad_wireguard":      resourceMullvadWireguard(),
+			"mullvad_wireguard_port": resourceMullvadWireguardPort(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
