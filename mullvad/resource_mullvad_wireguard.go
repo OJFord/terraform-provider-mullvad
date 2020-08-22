@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/go-resty/resty/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 	"log"
 	"net/http"
 )
@@ -68,16 +67,6 @@ type KeyListResponse struct {
 }
 
 func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error {
-	if d.Get("public_key") == nil {
-		key, err := wgtypes.GeneratePrivateKey()
-		if err != nil {
-			return err
-		}
-
-		d.Set("private_key", key.String())
-		d.Set("public_key", key.PublicKey().String())
-	}
-
 	body := &KeyRequest{
 		PublicKey: d.Get("public_key").(string),
 	}
