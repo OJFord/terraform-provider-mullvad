@@ -9,7 +9,7 @@ description: |-
 # Mullvad Provider
 
 The Mullvad provider is used to interact with the
-resources supported by Mullvad](https://mullvad.net). The provider needs to be configured
+resources supported by [Mullvad](https://mullvad.net). The provider needs to be configured
 with the proper credentials before it can be used.
 
 ## Example Usage
@@ -30,4 +30,4 @@ resource "mullvad_wireguard" "server" {
 
 The following arguments are supported:
 
-* `account_id` - (Required) This is the Mullvad account number [account number](https://mullvad.net/en/account/).
+* `account_id` - (Required) This is the Mullvad [account number](https://mullvad.net/en/account/).
