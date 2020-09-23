@@ -1,4 +1,1 @@
-/.terraform/
-/terraform.auto.tfvars
-/terraform.tfstate*
-/terraform-provider-mullvad
+/dist/
