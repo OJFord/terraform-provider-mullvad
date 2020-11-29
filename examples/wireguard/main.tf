@@ -1,3 +1,11 @@
+terraform {
+  required_providers {
+    mullvad = {
+      source = "OJFord/mullvad"
+    }
+  }
+}
+
 provider "mullvad" {
   account_id = var.mullvad_account_id
 }
