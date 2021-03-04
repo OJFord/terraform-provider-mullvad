@@ -28,9 +28,19 @@ func resourceMullvadWireguardPort() *schema.Resource {
 				Computed:    true,
 				Type:        schema.TypeBool,
 			},
+			"city_code": {
+				Description: "Mullvad's code for the city in which the relay is located, e.g. `\"lon\"` for London.",
+				Required:    true,
+				Type:        schema.TypeString,
+			},
+			"country_code": {
+				Description: "Country code (ISO3166-1 Alpha-2) in which the relay is located.",
+				Required:    true,
+				Type:        schema.TypeString,
+			},
 			"peer": {
 				Description: "The public key of the WireGuard peer to assign this port to.",
-				Optional:    true,
+				Required:    true,
 				Type:        schema.TypeString,
 			},
 			"port": {
@@ -71,19 +81,25 @@ func determineAddedPorts(now_ports []int, initial_ports []int) []int {
 	return new_ports
 }
 
+type PortRequest struct {
+	PublicKey       string `json:"pubkey"`
+	CountryCityCode string `json:"city_code"`
+}
+
+type PortResponse struct {
+	Port int `json:"port"`
+}
+
 func resourceMullvadWireguardPortCreate(d *schema.ResourceData, m interface{}) error {
-	body := &KeyRequest{}
+	body := &PortRequest{}
 
 	if d.Get("peer") != "" {
 		body.PublicKey = d.Get("peer").(string)
 	}
 
-	initial_ports, err := getPortsList(m.(*resty.Client))
-	if err != nil {
-		return err
-	}
+	body.CountryCityCode = fmt.Sprintf("%s-%s", d.Get("country_code"), d.Get("city_code"))
 
-	resp, err := m.(*resty.Client).R().SetBody(body).Post("www/ports/add/")
+	resp, err := m.(*resty.Client).R().SetBody(body).SetResult(PortResponse{}).Post("www/ports/add/")
 	if err != nil {
 		return err
 	}
@@ -93,17 +109,8 @@ func resourceMullvadWireguardPortCreate(d *schema.ResourceData, m interface{}) e
 		return errors.New("Failed to add port")
 	}
 
-	now_ports, err := getPortsList(m.(*resty.Client))
-	if err != nil {
-		return err
-	}
-
-	new_ports := determineAddedPorts(now_ports, initial_ports)
-	if num := len(new_ports); num != 1 {
-		return errors.New(fmt.Sprintf("Expected one added port, but found %d", num))
-	}
-
-	d.SetId(strconv.Itoa(new_ports[0]))
+	added_port := resp.Result().(*PortResponse).Port
+	d.SetId(strconv.Itoa(added_port))
 
 	return resourceMullvadWireguardPortRead(d, m)
 }
@@ -130,7 +137,7 @@ func resourceMullvadWireguardPortRead(d *schema.ResourceData, m interface{}) err
 				for _, key_port := range key.Ports {
 					if strconv.Itoa(key_port) == d.Id() {
 						d.Set("assigned", true)
-						d.Set("peer", key.PublicKey)
+						d.Set("peer", key.KeyPair.PublicKey)
 						break
 					}
 				}
@@ -149,18 +156,9 @@ func resourceMullvadWireguardPortRead(d *schema.ResourceData, m interface{}) err
 	return nil
 }
 
-type PortRequest struct {
+type PortRemoveRequest struct {
 	KeyRequest
 	Port int `json:"port"`
-}
-
-func containsPort(ports []int, port int) bool {
-	for _, peer_port := range ports {
-		if peer_port == port {
-			return true
-		}
-	}
-	return false
 }
 
 func getPeerPorts(peer string, m *resty.Client) ([]int, error) {
@@ -175,7 +173,7 @@ func getPeerPorts(peer string, m *resty.Client) ([]int, error) {
 	}
 
 	for _, key := range resp.Result().(*KeyListResponse).Keys {
-		if key.PublicKey != peer {
+		if key.KeyPair.PublicKey != peer {
 			continue
 		}
 
@@ -193,7 +191,7 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 
 		// unlink old peer
 		if old_peer != "" {
-			body := &PortRequest{
+			body := &PortRemoveRequest{
 				Port: d.Get("port").(int),
 			}
 			body.PublicKey = old_peer.(string)
@@ -212,7 +210,7 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 		// link new peer
 		if new_peer.(string) != "" {
 			// unfortunately we can't actually specify which port to use, Mullvad picks a random one
-			add_body := &PortRequest{}
+			add_body := &PortRemoveRequest{}
 			add_body.PublicKey = new_peer.(string)
 
 			// so we'll keep trying until it picks the right one...
@@ -220,12 +218,7 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 			// so actually looping here will be very rare/not happen.
 			var correct_port_linked = false
 			for !correct_port_linked {
-				initial_ports, err := getPeerPorts(new_peer.(string), m.(*resty.Client))
-				if err != nil {
-					return err
-				}
-
-				resp, err := m.(*resty.Client).R().SetBody(add_body).Post("www/ports/add/")
+				resp, err := m.(*resty.Client).R().SetBody(add_body).SetResult(PortResponse{}).Post("www/ports/add/")
 				if err != nil {
 					return err
 				}
@@ -234,28 +227,23 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 					return errors.New("Failed to add port")
 				}
 
-				now_ports, err := getPeerPorts(new_peer.(string), m.(*resty.Client))
-				if err != nil {
-					return err
-				}
+				added_port := resp.Result().(*PortResponse).Port
 
-				if containsPort(now_ports, d.Get("port").(int)) {
+				if added_port == d.Get("port").(int) {
 					correct_port_linked = true
 				} else {
-					for _, port := range determineAddedPorts(now_ports, initial_ports) {
-						remove_body := &PortRequest{
-							Port: port,
-						}
-						remove_body.PublicKey = new_peer.(string)
+					remove_body := &PortRemoveRequest{
+						Port: added_port,
+					}
+					remove_body.PublicKey = new_peer.(string)
 
-						resp, err := m.(*resty.Client).R().SetBody(remove_body).Post("www/ports/remove/")
-						if err != nil {
-							return err
-						}
-						if resp.StatusCode() != http.StatusNoContent && resp.StatusCode() != http.StatusNotFound {
-							log.Printf("[ERROR] %s", resp.Status())
-							return errors.New("Failed to remove port")
-						}
+					resp, err := m.(*resty.Client).R().SetBody(remove_body).Post("www/ports/remove/")
+					if err != nil {
+						return err
+					}
+					if resp.StatusCode() != http.StatusNoContent && resp.StatusCode() != http.StatusNotFound {
+						log.Printf("[ERROR] %s", resp.Status())
+						return errors.New("Failed to remove port")
 					}
 				}
 			}
@@ -267,7 +255,7 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 }
 
 func resourceMullvadWireguardPortDelete(d *schema.ResourceData, m interface{}) error {
-	body := &PortRequest{
+	body := &PortRemoveRequest{
 		Port: d.Get("port").(int),
 	}
 	// We don't specify the pubkey, because that would only unlink from the peer.

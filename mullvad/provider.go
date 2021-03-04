@@ -1,10 +1,12 @@
 package mullvad
 
 import (
+	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"log"
+	"net/http"
 )
 
 func Provider() *schema.Provider {
@@ -28,17 +30,15 @@ func Provider() *schema.Provider {
 	}
 }
 
+type LoginResponse struct {
+	AuthToken string `json:"auth_token"`
+}
+
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 	client := resty.New().EnableTrace().SetDebug(true)
 
 	client.SetHostURL("https://api.mullvad.net")
 
-	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
-		req.SetHeader("Authorization", fmt.Sprint("Token ", d.Get("account_id")))
-		return nil
-	})
-
-	client.SetDebug(true)
 	client.OnRequestLog(func(rl *resty.RequestLog) error {
 		log.Printf("[INFO] Mullvad API request: %s", rl)
 		return nil
@@ -48,5 +48,21 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		return nil
 	})
 
+	resp, err := client.R().SetResult(LoginResponse{}).Get(fmt.Sprintf("www/accounts/%s/", d.Get("account_id").(string)))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		log.Printf("[ERROR] %s", resp.Status())
+		return nil, errors.New("Authentication failed, check Mullvad account ID")
+	}
+
+	auth_token := resp.Result().(*LoginResponse).AuthToken
+
+	client.OnBeforeRequest(func(c *resty.Client, req *resty.Request) error {
+		req.SetHeader("Authorization", fmt.Sprint("Token ", auth_token))
+		return nil
+	})
 	return client, nil
 }

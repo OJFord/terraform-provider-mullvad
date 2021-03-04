@@ -54,16 +54,18 @@ type KeyRequest struct {
 	PublicKey string `json:"pubkey"`
 }
 
-type KeyCreateResponse struct {
-	Created     string `json:"created"`
-	IpV4Address string `json:"ipv4_address"`
-	IpV6Address string `json:"ipv6_address"`
+type KeyPair struct {
+	PublicKey  string `json:"public"`
+	PrivateKey string `json:"private"`
 }
 
 type KeyResponse struct {
-	KeyCreateResponse
-	Ports     []int  `json:"ports"`
-	PublicKey string `json:"key"`
+	CanAddPorts bool    `json:"can_add_ports"`
+	Created     string  `json:"created"`
+	KeyPair     KeyPair `json:"key"`
+	IpV4Address string  `json:"ipv4_address"`
+	IpV6Address string  `json:"ipv6_address"`
+	Ports       []int   `json:"ports"`
 }
 
 type KeyListResponse struct {
@@ -78,7 +80,7 @@ func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error
 		PublicKey: d.Get("public_key").(string),
 	}
 
-	resp, err := m.(*resty.Client).R().SetBody(body).SetResult(KeyCreateResponse{}).Post("www/wg-pubkeys/add/")
+	resp, err := m.(*resty.Client).R().SetBody(body).SetResult(KeyResponse{}).Post("www/wg-pubkeys/add/")
 	if err != nil {
 		return err
 	}
@@ -88,8 +90,8 @@ func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error
 		return errors.New("Failed to register public key")
 	}
 
-	result := resp.Result().(*KeyCreateResponse)
-	log.Printf("[DEBUG] Created: %s", result)
+	result := resp.Result().(*KeyResponse)
+	log.Printf("[DEBUG] Created: %s", result.KeyPair.PublicKey)
 
 	d.SetId(d.Get("public_key").(string))
 
@@ -109,7 +111,7 @@ func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
 
 	result := resp.Result().(*KeyListResponse)
 	for _, key_resp := range result.Keys {
-		if key_resp.PublicKey == d.Get("public_key") {
+		if key_resp.KeyPair.PublicKey == d.Get("public_key") {
 			d.Set("created", key_resp.Created)
 			d.Set("ipv4_address", key_resp.IpV4Address)
 			d.Set("ipv6_address", key_resp.IpV6Address)
