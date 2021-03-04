@@ -3,41 +3,48 @@ package mullvad
 import (
 	"errors"
 	"github.com/go-resty/resty/v2"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"log"
 	"net/http"
 )
 
 func resourceMullvadWireguard() *schema.Resource {
 	return &schema.Resource{
+		Description: "Provides a Mullvad WireGuard resource. This can be used to create, read, and delete WireGuard keys on your Mullvad account.",
+
 		Create: resourceMullvadWireguardCreate,
 		Read:   resourceMullvadWireguardRead,
 		Delete: resourceMullvadWireguardDelete,
 
 		Schema: map[string]*schema.Schema{
-			"created": &schema.Schema{
-				Computed: true,
-				Type:     schema.TypeString,
+			"created": {
+				Description: "The date the peer was registered.",
+				Computed:    true,
+				Type:        schema.TypeString,
 			},
-			"ipv4_address": &schema.Schema{
-				Computed: true,
-				Type:     schema.TypeString,
+			"ipv4_address": {
+				Description: "The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
+				Computed:    true,
+				Type:        schema.TypeString,
 			},
-			"ipv6_address": &schema.Schema{
-				Computed: true,
-				Type:     schema.TypeString,
+			"ipv6_address": {
+				Description: "The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
+				Computed:    true,
+				Type:        schema.TypeString,
 			},
-			"ports": &schema.Schema{
-				Computed: true,
+			"ports": {
+				Description: "The ports forwarded for the registered peer.",
+				Computed:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeInt,
 				},
 				Type: schema.TypeList,
 			},
-			"public_key": &schema.Schema{
-				ForceNew: true,
-				Required: true,
-				Type:     schema.TypeString,
+			"public_key": {
+				Description: "The public key of the WireGuard peer to register.",
+				ForceNew:    true,
+				Required:    true,
+				Type:        schema.TypeString,
 			},
 		},
 	}

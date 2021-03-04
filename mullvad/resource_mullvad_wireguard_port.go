@@ -1,10 +1,11 @@
 package mullvad
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/go-resty/resty/v2"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,24 +15,29 @@ const MISSING_PORT = 0
 
 func resourceMullvadWireguardPort() *schema.Resource {
 	return &schema.Resource{
+		Description: "Provides a Mullvad WireGuard port resource. This can be used to create, read, update, and delete WireGuard ports on your Mullvad account.",
+
 		Create: resourceMullvadWireguardPortCreate,
 		Read:   resourceMullvadWireguardPortRead,
 		Update: resourceMullvadWireguardPortUpdate,
 		Delete: resourceMullvadWireguardPortDelete,
 
 		Schema: map[string]*schema.Schema{
-			"assigned": &schema.Schema{
-				Computed: true,
-				Type:     schema.TypeBool,
+			"assigned": {
+				Description: "Whether the port is assigned to a peer.",
+				Computed:    true,
+				Type:        schema.TypeBool,
 			},
-			"peer": &schema.Schema{
-				Optional: true,
-				Type:     schema.TypeString,
+			"peer": {
+				Description: "The public key of the WireGuard peer to assign this port to.",
+				Optional:    true,
+				Type:        schema.TypeString,
 			},
-			"port": &schema.Schema{
-				Computed: true,
-				ForceNew: true,
-				Type:     schema.TypeInt,
+			"port": {
+				Description: "The integer value of the port.",
+				Computed:    true,
+				ForceNew:    true,
+				Type:        schema.TypeInt,
 			},
 		},
 
@@ -254,8 +260,6 @@ func resourceMullvadWireguardPortUpdate(d *schema.ResourceData, m interface{}) e
 				}
 			}
 		}
-
-		d.SetPartial("peer")
 	}
 
 	d.Partial(false)
@@ -287,7 +291,7 @@ func resourceMullvadWireguardPortDelete(d *schema.ResourceData, m interface{}) e
 	return nil
 }
 
-func resourceMullvadWireguardPortCustomizeDiff(d *schema.ResourceDiff, m interface{}) error {
+func resourceMullvadWireguardPortCustomizeDiff(c context.Context, d *schema.ResourceDiff, m interface{}) error {
 	// Check if AWOL
 	if d.Get("port").(int) == MISSING_PORT {
 		d.SetNewComputed("port")
