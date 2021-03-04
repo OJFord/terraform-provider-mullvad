@@ -17,6 +17,9 @@ func Provider() *schema.Provider {
 				Type:        schema.TypeString,
 			},
 		},
+		DataSourcesMap: map[string]*schema.Resource{
+			"mullvad_relay": dataSourceMullvadRelay(),
+		},
 		ResourcesMap: map[string]*schema.Resource{
 			"mullvad_wireguard":      resourceMullvadWireguard(),
 			"mullvad_wireguard_port": resourceMullvadWireguardPort(),
