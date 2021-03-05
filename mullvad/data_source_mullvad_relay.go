@@ -2,11 +2,10 @@ package mullvad
 
 import (
 	"errors"
-	"github.com/go-resty/resty/v2"
+	"github.com/OJFord/terraform-provider-mullvad/api"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/mapstructure"
 	"log"
-	"net/http"
 )
 
 func dataSourceMullvadRelay() *schema.Resource {
@@ -147,45 +146,19 @@ func dataSourceMullvadRelay() *schema.Resource {
 	}
 }
 
-type RelayResponse struct {
-	HostName       string   `json:"hostname" mapstructure:"hostname"`
-	CountryCode    string   `json:"country_code" mapstructure:"country_code"`
-	CountryName    string   `json:"country_name" mapstructure:"country_name"`
-	CityCode       string   `json:"city_code" mapstructure:"city_code"`
-	CityName       string   `json:"city_name" mapstructure:"city_name"`
-	IsActive       bool     `json:"active" mapstructure:"is_active"`
-	IsOwned        bool     `json:"owned" mapstructure:"is_owned"`
-	Provider       string   `json:"provider" mapstructure:"provider"`
-	IpV4Address    string   `json:"ipv4_addr_in" mapstructure:"ipv4_address"`
-	IpV6Address    string   `json:"ipv6_addr_in" mapstructure:"ipv6_address"`
-	Type           string   `json:"type" mapstructure:"type"`
-	StatusMessages []string `json:"status_messages" mapstructure:"status_messages"`
-	PublicKey      string   `json:"pubkey" mapstructure:"public_key,omitempty"`
-	MultiHopPort   int      `json:"multihop_port" mapstructure:"multihop_port,omitempty"`
-	SocksName      string   `json:"socks_name" mapstructure:"socks_name,omitempty"`
-	SshFprSha256   string   `json:"ssh_fingerprint_sha256" mapstructure:"ssh_fingerprint_sha256,omitempty"`
-	SshFprMd5      string   `json:"ssh_fingerprint_md5" mapstructure:"ssh_fingerprint_md5,omitempty"`
-}
-
 func dataSourceMullvadRelayRead(d *schema.ResourceData, m interface{}) error {
-	resp, err := m.(*resty.Client).R().SetResult([]RelayResponse{}).Get("www/relays/all/")
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		log.Printf("[ERROR] %s: %s", resp.Status(), resp.Body())
-		return errors.New("Failed to read available relays")
-	}
-
 	filters, ok := d.GetOk("filter")
 	if !ok {
 		return errors.New("Failed read filters")
 	}
 
-	result := resp.Result().(*[]RelayResponse)
+	relays, err := m.(*api.Client).ListRelays()
+	if err != nil {
+		return err
+	}
+
 	matching := make([]map[string]interface{}, 0)
-	for _, relay := range *result {
+	for _, relay := range *relays {
 		log.Printf("[INFO] Checking filter against %s", relay.HostName)
 		var matches bool = true
 

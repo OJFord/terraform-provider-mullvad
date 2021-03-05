@@ -9,6 +9,8 @@ description: |-
 
 The Mullvad provider is used to interact with the resources supported by [Mullvad](https://mullvad.net). The provider needs to be configured with the proper credentials before it can be used.
 
+~> **Note:** The Mullvad API is **not** publicly documented nor versioned; so is subject to change without warning, including the possibility of requiring breaking changes to the Terraform API in order to support changes to Mullvad's. My temptation is to fix these in *minor* version updates, so that users are immediately aware of the problem and forced to make the necessary changes (unless perhaps it only affects a particular resource or two) - rather than continue to (try to) use the old version which may behave strangely or not work at all. If you have strong feelings on how to version a package with a third-party dependency that may experience breaking changes without warning, please discuss it on GitHub, suggestions welcome!
+
 ## Example Usage
 
 ```terraform

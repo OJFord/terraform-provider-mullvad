@@ -2,10 +2,8 @@ package mullvad
 
 import (
 	"errors"
-	"github.com/go-resty/resty/v2"
+	"github.com/OJFord/terraform-provider-mullvad/api"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"log"
-	"net/http"
 )
 
 func resourceMullvadWireguard() *schema.Resource {
@@ -50,95 +48,37 @@ func resourceMullvadWireguard() *schema.Resource {
 	}
 }
 
-type KeyRequest struct {
-	PublicKey string `json:"pubkey"`
-}
-
-type KeyPair struct {
-	PublicKey  string `json:"public"`
-	PrivateKey string `json:"private"`
-}
-
-type KeyResponse struct {
-	CanAddPorts bool    `json:"can_add_ports"`
-	Created     string  `json:"created"`
-	KeyPair     KeyPair `json:"key"`
-	IpV4Address string  `json:"ipv4_address"`
-	IpV6Address string  `json:"ipv6_address"`
-	Ports       []int   `json:"ports"`
-}
-
-type KeyListResponse struct {
-	Keys            []KeyResponse `json:"keys"`
-	MaxPorts        int           `json:"max_ports"`
-	Ports           []int         `json:"ports"`
-	UnassignedPorts int           `json:"unassigned_ports"`
-}
-
 func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error {
-	body := &KeyRequest{
-		PublicKey: d.Get("public_key").(string),
-	}
+	pubkey := d.Get("public_key").(string)
 
-	resp, err := m.(*resty.Client).R().SetBody(body).SetResult(KeyResponse{}).Post("www/wg-pubkeys/add/")
+	err := m.(*api.Client).AddWireGuardKey(pubkey)
 	if err != nil {
 		return err
 	}
 
-	if resp.StatusCode() != http.StatusCreated {
-		log.Printf("[ERROR] %s", resp.Status())
-		return errors.New("Failed to register public key")
-	}
-
-	result := resp.Result().(*KeyResponse)
-	log.Printf("[DEBUG] Created: %s", result.KeyPair.PublicKey)
-
-	d.SetId(d.Get("public_key").(string))
-
+	d.SetId(pubkey)
 	return resourceMullvadWireguardRead(d, m)
 }
 
 func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
-	resp, err := m.(*resty.Client).R().SetResult(KeyListResponse{}).Get("www/wg-pubkeys/list/")
+	key, err := m.(*api.Client).GetWireGuardKey(d.Get("public_key").(string))
 	if err != nil {
+		if err == api.ErrKeyNotFound {
+			d.SetId("")
+			return errors.New("Key has been revoked outside of Terraform's state")
+		}
+
 		return err
 	}
 
-	if resp.StatusCode() != http.StatusOK {
-		log.Printf("[ERROR] %s: %s", resp.Status(), resp.Body())
-		return errors.New("Failed to read registered keys")
-	}
+	d.Set("created", key.Created)
+	d.Set("ipv4_address", key.IpV4Address)
+	d.Set("ipv6_address", key.IpV6Address)
+	d.Set("ports", key.Ports)
 
-	result := resp.Result().(*KeyListResponse)
-	for _, key_resp := range result.Keys {
-		if key_resp.KeyPair.PublicKey == d.Get("public_key") {
-			d.Set("created", key_resp.Created)
-			d.Set("ipv4_address", key_resp.IpV4Address)
-			d.Set("ipv6_address", key_resp.IpV6Address)
-			d.Set("ports", key_resp.Ports)
-
-			return nil
-		}
-	} // key not found
-
-	d.SetId("")
-	return errors.New("Key has been revoked outside of Terraform's state")
+	return nil
 }
 
 func resourceMullvadWireguardDelete(d *schema.ResourceData, m interface{}) error {
-	body := &KeyRequest{
-		PublicKey: d.Get("public_key").(string),
-	}
-
-	resp, err := m.(*resty.Client).R().SetBody(body).Post("www/wg-pubkeys/revoke/")
-	if err != nil {
-		return err
-	}
-
-	if resp.StatusCode() != http.StatusNoContent {
-		log.Printf("[ERROR] %s: %s", resp.Status(), resp.Body())
-		return errors.New("Failed to revoke key")
-	}
-
-	return nil
+	return m.(*api.Client).RevokeWireGuardKey(d.Get("public_key").(string))
 }
