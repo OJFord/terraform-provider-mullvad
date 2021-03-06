@@ -1,7 +1,7 @@
-package mullvad
+package provider
 
 import (
-	"github.com/OJFord/terraform-provider-mullvad/api"
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -27,5 +27,5 @@ func Provider() *schema.Provider {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	return api.GetClient(d.Get("account_id").(string))
+	return mullvadapi.GetClient(d.Get("account_id").(string))
 }

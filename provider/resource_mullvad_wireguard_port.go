@@ -1,7 +1,7 @@
-package mullvad
+package provider
 
 import (
-	"github.com/OJFord/terraform-provider-mullvad/api"
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"strconv"
 )
@@ -57,7 +57,7 @@ func resourceMullvadWireguardPortCreate(d *schema.ResourceData, m interface{}) e
 		public_key = &pk
 	}
 
-	added_port, err := m.(*api.Client).AddForwardingPort(country_code, city_code, public_key)
+	added_port, err := m.(*mullvadapi.Client).AddForwardingPort(country_code, city_code, public_key)
 	if err != nil {
 		return err
 	}
@@ -74,7 +74,7 @@ func resourceMullvadWireguardPortRead(d *schema.ResourceData, m interface{}) err
 		return err
 	}
 
-	port_forward, err := m.(*api.Client).GetForwardingPort(country_code, city_code, port)
+	port_forward, err := m.(*mullvadapi.Client).GetForwardingPort(country_code, city_code, port)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func resourceMullvadWireguardPortDelete(d *schema.ResourceData, m interface{}) e
 	city_code := d.Get("city_code").(string)
 	port := d.Get("port").(int)
 
-	if err := m.(*api.Client).RemoveForwardingPort(country_code, city_code, port); err != nil {
+	if err := m.(*mullvadapi.Client).RemoveForwardingPort(country_code, city_code, port); err != nil {
 		return err
 	}
 

@@ -1,8 +1,8 @@
-package mullvad
+package provider
 
 import (
 	"errors"
-	"github.com/OJFord/terraform-provider-mullvad/api"
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -51,7 +51,7 @@ func resourceMullvadWireguard() *schema.Resource {
 func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error {
 	pubkey := d.Get("public_key").(string)
 
-	err := m.(*api.Client).AddWireGuardKey(pubkey)
+	err := m.(*mullvadapi.Client).AddWireGuardKey(pubkey)
 	if err != nil {
 		return err
 	}
@@ -61,9 +61,9 @@ func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error
 }
 
 func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
-	key, err := m.(*api.Client).GetWireGuardKey(d.Get("public_key").(string))
+	key, err := m.(*mullvadapi.Client).GetWireGuardKey(d.Get("public_key").(string))
 	if err != nil {
-		if err == api.ErrKeyNotFound {
+		if err == mullvadapi.ErrKeyNotFound {
 			d.SetId("")
 			return errors.New("Key has been revoked outside of Terraform's state")
 		}
@@ -80,5 +80,5 @@ func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceMullvadWireguardDelete(d *schema.ResourceData, m interface{}) error {
-	return m.(*api.Client).RevokeWireGuardKey(d.Get("public_key").(string))
+	return m.(*mullvadapi.Client).RevokeWireGuardKey(d.Get("public_key").(string))
 }

@@ -1,8 +1,8 @@
-package mullvad
+package provider
 
 import (
 	"errors"
-	"github.com/OJFord/terraform-provider-mullvad/api"
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mitchellh/mapstructure"
 	"log"
@@ -152,7 +152,7 @@ func dataSourceMullvadRelayRead(d *schema.ResourceData, m interface{}) error {
 		return errors.New("Failed read filters")
 	}
 
-	relays, err := m.(*api.Client).ListRelays()
+	relays, err := m.(*mullvadapi.Client).ListRelays()
 	if err != nil {
 		return err
 	}
