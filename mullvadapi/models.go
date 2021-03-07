@@ -45,6 +45,11 @@ type Account struct {
 	Subscription       Subscription     `json:"subscription"`
 }
 
+type CityResponse struct {
+	CountryCityCode string `json:"code"`
+	Name            string `json:"name"`
+}
+
 type MeResponse struct {
 	Account Account
 }

@@ -16,6 +16,7 @@ func Provider() *schema.Provider {
 			},
 		},
 		DataSourcesMap: map[string]*schema.Resource{
+			"mullvad_city":  dataSourceMullvadCity(),
 			"mullvad_relay": dataSourceMullvadRelay(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
