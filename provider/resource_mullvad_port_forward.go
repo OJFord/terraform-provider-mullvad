@@ -6,40 +6,35 @@ import (
 	"strconv"
 )
 
-func resourceMullvadWireguardPort() *schema.Resource {
+func resourceMullvadPortForward() *schema.Resource {
 	return &schema.Resource{
-		Description: "Provides a Mullvad WireGuard port resource. This can be used to create, read, update, and delete WireGuard ports on your Mullvad account.",
+		Description: "Provides a Mullvad port forward resource. This can be used to create, read, update, and delete forwarding ports on your Mullvad account.",
 
-		Create: resourceMullvadWireguardPortCreate,
-		Read:   resourceMullvadWireguardPortRead,
-		Delete: resourceMullvadWireguardPortDelete,
+		Create: resourceMullvadPortForwardCreate,
+		Read:   resourceMullvadPortForwardRead,
+		Delete: resourceMullvadPortForwardDelete,
 
 		Schema: map[string]*schema.Schema{
-			"assigned": {
-				Description: "Whether the port is assigned to a peer.",
-				Computed:    true,
-				Type:        schema.TypeBool,
-			},
 			"city_code": {
-				Description: "Mullvad's code for the city in which the relay is located, e.g. `\"lon\"` for London.",
+				Description: "Mullvad's code for the city in which the relay to which the forwarding target will connect is located, e.g. `\"lon\"` for London.",
 				Required:    true,
 				ForceNew:    true,
 				Type:        schema.TypeString,
 			},
 			"country_code": {
-				Description: "Country code (ISO3166-1 Alpha-2) in which the relay is located.",
+				Description: "Country code (ISO3166-1 Alpha-2) in which the relay to which the forwarding target will connect is located.",
 				Required:    true,
 				ForceNew:    true,
 				Type:        schema.TypeString,
 			},
 			"peer": {
-				Description: "The public key of the WireGuard peer to assign this port to.",
-				Required:    true,
+				Description: "The public key of the WireGuard peer, if any, to assign forward this port to. (Required for WireGuard; not applicable for OpenVPN connections.",
+				Optional:    true,
 				ForceNew:    true,
 				Type:        schema.TypeString,
 			},
 			"port": {
-				Description: "The integer value of the port.",
+				Description: "The integer value of the port that will be forwarded.",
 				Computed:    true,
 				ForceNew:    true,
 				Type:        schema.TypeInt,
@@ -48,7 +43,7 @@ func resourceMullvadWireguardPort() *schema.Resource {
 	}
 }
 
-func resourceMullvadWireguardPortCreate(d *schema.ResourceData, m interface{}) error {
+func resourceMullvadPortForwardCreate(d *schema.ResourceData, m interface{}) error {
 	country_code := d.Get("country_code").(string)
 	city_code := d.Get("city_code").(string)
 
@@ -63,10 +58,10 @@ func resourceMullvadWireguardPortCreate(d *schema.ResourceData, m interface{}) e
 	}
 
 	d.SetId(strconv.Itoa(*added_port))
-	return resourceMullvadWireguardPortRead(d, m)
+	return resourceMullvadPortForwardRead(d, m)
 }
 
-func resourceMullvadWireguardPortRead(d *schema.ResourceData, m interface{}) error {
+func resourceMullvadPortForwardRead(d *schema.ResourceData, m interface{}) error {
 	country_code := d.Get("country_code").(string)
 	city_code := d.Get("city_code").(string)
 	port, err := strconv.Atoi(d.Id())
@@ -86,7 +81,7 @@ func resourceMullvadWireguardPortRead(d *schema.ResourceData, m interface{}) err
 	return nil
 }
 
-func resourceMullvadWireguardPortDelete(d *schema.ResourceData, m interface{}) error {
+func resourceMullvadPortForwardDelete(d *schema.ResourceData, m interface{}) error {
 	country_code := d.Get("country_code").(string)
 	city_code := d.Get("city_code").(string)
 	port := d.Get("port").(int)

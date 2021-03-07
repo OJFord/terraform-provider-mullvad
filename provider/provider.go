@@ -20,8 +20,8 @@ func Provider() *schema.Provider {
 			"mullvad_relay": dataSourceMullvadRelay(),
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"mullvad_wireguard":      resourceMullvadWireguard(),
-			"mullvad_wireguard_port": resourceMullvadWireguardPort(),
+			"mullvad_port_forward": resourceMullvadPortForward(),
+			"mullvad_wireguard":    resourceMullvadWireguard(),
 		},
 		ConfigureFunc: providerConfigure,
 	}
