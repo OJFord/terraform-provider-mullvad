@@ -152,7 +152,26 @@ func dataSourceMullvadRelayRead(d *schema.ResourceData, m interface{}) error {
 		return errors.New("Failed read filters")
 	}
 
-	relays, err := m.(*mullvadapi.Client).ListRelays()
+	var city_name string
+	var country_code string
+	var kind = "all"
+	for _, f := range filters.(*schema.Set).List() {
+		filter := f.(map[string]interface{})
+
+		if f, exists := filter["city_name"]; exists {
+			city_name = f.(string)
+		}
+
+		if f, exists := filter["country_code"]; exists {
+			country_code = f.(string)
+		}
+
+		if f, exists := filter["type"]; exists {
+			kind = f.(string)
+		}
+	}
+
+	relays, err := m.(*mullvadapi.Client).ListRelays(kind)
 	if err != nil {
 		return err
 	}
@@ -160,28 +179,8 @@ func dataSourceMullvadRelayRead(d *schema.ResourceData, m interface{}) error {
 	matching := make([]map[string]interface{}, 0)
 	for _, relay := range *relays {
 		log.Printf("[INFO] Checking filter against %s", relay.HostName)
-		var matches bool = true
 
-		for _, f := range filters.(*schema.Set).List() {
-			filter := f.(map[string]interface{})
-
-			if city_name, exists := filter["city_name"]; exists && city_name != relay.CityName {
-				matches = false
-				break
-			}
-
-			if country_code, exists := filter["country_code"]; exists && country_code != relay.CountryCode {
-				matches = false
-				break
-			}
-
-			if rtype, exists := filter["type"]; exists && rtype != relay.Type {
-				matches = false
-				break
-			}
-		}
-
-		if matches {
+		if (city_name == "" || relay.CityName == city_name) && (country_code == "" || relay.CountryCode == country_code) {
 			log.Printf("[INFO] Match found: %s", relay.HostName)
 			m := make(map[string]interface{})
 			mapstructure.Decode(relay, &m)

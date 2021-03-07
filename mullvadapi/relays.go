@@ -2,12 +2,13 @@ package mullvadapi
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 )
 
-func (c *Client) ListRelays() (*[]RelayResponse, error) {
-	resp, err := c.R().SetResult([]RelayResponse{}).Get("www/relays/all/")
+func (c *Client) ListRelays(kind string) (*[]RelayResponse, error) {
+	resp, err := c.R().SetResult([]RelayResponse{}).Get(fmt.Sprintf("www/relays/%s/", kind))
 	if err != nil {
 		return nil, err
 	}
