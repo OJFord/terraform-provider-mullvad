@@ -41,8 +41,9 @@ type Account struct {
 	MaxForwardingPorts int              `json:"max_ports"`
 	CanAddPorts        bool             `json:"can_add_ports"`
 	WireGuardPeers     []WireGuardPeer  `json:"wg_peers"`
+	MaxWireGuardPeers  int              `json:"max_wg_peers"`
 	CanAddWgPeers      bool             `json:"can_add_wg_peers"`
-	Subscription       Subscription     `json:"subscription"`
+	Subscription       *Subscription    `json:"subscription"`
 }
 
 type CityResponse struct {
@@ -55,8 +56,8 @@ type MeResponse struct {
 }
 
 type LoginResponse struct {
-	Account
-	AuthToken string `json:"auth_token"`
+	Account   Account `json:"account"`
+	AuthToken string  `json:"auth_token"`
 }
 
 type KeyRequest struct {

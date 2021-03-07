@@ -1,7 +1,6 @@
 package provider
 
 import (
-	"errors"
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -65,7 +64,7 @@ func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
 	if err != nil {
 		if err == mullvadapi.ErrKeyNotFound {
 			d.SetId("")
-			return errors.New("Key has been revoked outside of Terraform's state")
+			return nil
 		}
 
 		return err
