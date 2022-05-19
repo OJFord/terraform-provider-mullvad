@@ -3,6 +3,7 @@ package provider
 import (
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"strings"
 )
 
 func Provider() *schema.Provider {
@@ -30,5 +31,5 @@ func Provider() *schema.Provider {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	return mullvadapi.GetClient(d.Get("account_id").(string))
+	return mullvadapi.GetClient(strings.Replace(d.Get("account_id").(string), " ", "", -1))
 }
