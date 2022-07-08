@@ -36,21 +36,21 @@ locals {
 
 ### Optional
 
-- **filter** (Block Set) Filter to apply to the available relays. (see [below for nested schema](#nestedblock--filter))
-- **id** (String) The ID of this resource.
+- `filter` (Block Set) Filter to apply to the available relays. (see [below for nested schema](#nestedblock--filter))
 
 ### Read-Only
 
-- **relays** (List of Object) List of the (filtered) available relays. (see [below for nested schema](#nestedatt--relays))
+- `id` (String) The ID of this resource.
+- `relays` (List of Object) List of the (filtered) available relays. (see [below for nested schema](#nestedatt--relays))
 
 <a id="nestedblock--filter"></a>
 ### Nested Schema for `filter`
 
 Optional:
 
-- **city_name** (String) City in which the returned relays should be located.
-- **country_code** (String) Country code (ISO3166-1 Alpha-2) in which the returned relays should be located.
-- **type** (String) Type of VPN that the returned relays should be operating - e.g. `"wireguard"`, `"openvpn"`.
+- `city_name` (String) City in which the returned relays should be located.
+- `country_code` (String) Country code (ISO3166-1 Alpha-2) in which the returned relays should be located.
+- `type` (String) Type of VPN that the returned relays should be operating - e.g. `"wireguard"`, `"openvpn"`.
 
 
 <a id="nestedatt--relays"></a>
@@ -58,22 +58,22 @@ Optional:
 
 Read-Only:
 
-- **city_code** (String)
-- **city_name** (String)
-- **country_code** (String)
-- **country_name** (String)
-- **hostname** (String)
-- **ipv4_address** (String)
-- **ipv6_address** (String)
-- **is_active** (Boolean)
-- **is_owned** (Boolean)
-- **multihop_port** (Number)
-- **provider** (String)
-- **public_key** (String)
-- **socks_name** (String)
-- **ssh_fingerprint_md5** (String)
-- **ssh_fingerprint_sha256** (String)
-- **status_messages** (List of String)
-- **type** (String)
+- `city_code` (String)
+- `city_name` (String)
+- `country_code` (String)
+- `country_name` (String)
+- `hostname` (String)
+- `ipv4_address` (String)
+- `ipv6_address` (String)
+- `is_active` (Boolean)
+- `is_owned` (Boolean)
+- `multihop_port` (Number)
+- `provider` (String)
+- `public_key` (String)
+- `socks_name` (String)
+- `ssh_fingerprint_md5` (String)
+- `ssh_fingerprint_sha256` (String)
+- `status_messages` (List of String)
+- `type` (String)
 
 

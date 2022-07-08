@@ -26,17 +26,14 @@ resource "mullvad_wireguard" "my_peer" {
 
 ### Required
 
-- **public_key** (String) The public key of the WireGuard peer to register.
-
-### Optional
-
-- **id** (String) The ID of this resource.
+- `public_key` (String) The public key of the WireGuard peer to register.
 
 ### Read-Only
 
-- **created** (String) The date the peer was registered.
-- **ipv4_address** (String) The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
-- **ipv6_address** (String) The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
-- **ports** (List of Number) The ports forwarded for the registered peer.
+- `created` (String) The date the peer was registered.
+- `id` (String) The ID of this resource.
+- `ipv4_address` (String) The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
+- `ipv6_address` (String) The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
+- `ports` (List of Number) The ports forwarded for the registered peer.
 
 

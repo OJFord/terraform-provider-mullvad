@@ -23,13 +23,13 @@ resource "mullvad_account" "example" {
 
 ### Read-Only
 
-- **expires_at** (String) Timestamp (RFC3339) at which the account expires, without new payment.
-- **id** (String, Sensitive) The (secret) Mullvad account ID.
-- **is_active** (Boolean) Whether the Mullvad account is active.
-- **is_subscription_unpaid** (Boolean) Whether payment is due on the subscription method (if applicable).
-- **max_forwarding_ports** (Number) Maximum number of forwarding ports which may be configured.
-- **max_wireguard_peers** (Number) Maximum number of WireGuard peers which may be configured.
-- **subscription_method** (String) Method used to pay the subscription, if there is one.
+- `expires_at` (String) Timestamp (RFC3339) at which the account expires, without new payment.
+- `id` (String, Sensitive) The (secret) Mullvad account ID.
+- `is_active` (Boolean) Whether the Mullvad account is active.
+- `is_subscription_unpaid` (Boolean) Whether payment is due on the subscription method (if applicable).
+- `max_forwarding_ports` (Number) Maximum number of forwarding ports which may be configured.
+- `max_wireguard_peers` (Number) Maximum number of WireGuard peers which may be configured.
+- `subscription_method` (String) Method used to pay the subscription, if there is one.
 
 ## Import
 

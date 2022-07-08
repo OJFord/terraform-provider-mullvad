@@ -24,4 +24,4 @@ provider "mullvad" {
 
 ### Optional
 
-- **account_id** (String, Sensitive) Secret account ID used to authenticate with the API. (Required if `mullvad_account` resource is not used.)
+- `account_id` (String, Sensitive) Secret account ID used to authenticate with the API. (Required if `mullvad_account` resource is not used.)

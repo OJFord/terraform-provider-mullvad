@@ -40,16 +40,16 @@ resource "wireguard_asymmetric_key" "target_peer" {
 
 ### Required
 
-- **city_code** (String) Mullvad's code for the city in which the relay to which the forwarding target will connect is located, e.g. `"lon"` for London.
-- **country_code** (String) Country code (ISO3166-1 Alpha-2) in which the relay to which the forwarding target will connect is located.
+- `city_code` (String) Mullvad's code for the city in which the relay to which the forwarding target will connect is located, e.g. `"lon"` for London.
+- `country_code` (String) Country code (ISO3166-1 Alpha-2) in which the relay to which the forwarding target will connect is located.
 
 ### Optional
 
-- **id** (String) The ID of this resource.
-- **peer** (String) The public key of the WireGuard peer, if any, to assign forward this port to. (Required for WireGuard; not applicable for OpenVPN connections.
+- `peer` (String) The public key of the WireGuard peer, if any, to assign forward this port to. (Required for WireGuard; not applicable for OpenVPN connections.
 
 ### Read-Only
 
-- **port** (Number) The integer value of the port that will be forwarded.
+- `id` (String) The ID of this resource.
+- `port` (Number) The integer value of the port that will be forwarded.
 
 

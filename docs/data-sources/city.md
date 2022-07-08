@@ -30,15 +30,12 @@ locals {
 
 ### Required
 
-- **name** (String) Name of the city to lookup.
-
-### Optional
-
-- **id** (String) The ID of this resource.
+- `name` (String) Name of the city to lookup.
 
 ### Read-Only
 
-- **city_code** (String) The 3-letter code used to refer to the city in Mullvad's API.
-- **country_code** (String) The ISO3166-1 Alpha-2 country code.
+- `city_code` (String) The 3-letter code used to refer to the city in Mullvad's API.
+- `country_code` (String) The ISO3166-1 Alpha-2 country code.
+- `id` (String) The ID of this resource.
 
 
