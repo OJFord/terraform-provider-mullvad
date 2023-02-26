@@ -36,14 +36,13 @@ locals {
 
 ### Optional
 
-- `filter` (Block Set) Filter to apply to the available relays. (see [below for nested schema](#nestedblock--filter))
+- `filter` (Attributes) Filter to apply to the available relays. (see [below for nested schema](#nestedatt--filter))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `relays` (List of Object) List of the (filtered) available relays. (see [below for nested schema](#nestedatt--relays))
+- `relays` (Attributes List) List of the (filtered) available relays. (see [below for nested schema](#nestedatt--relays))
 
-<a id="nestedblock--filter"></a>
+<a id="nestedatt--filter"></a>
 ### Nested Schema for `filter`
 
 Optional:
@@ -56,24 +55,27 @@ Optional:
 <a id="nestedatt--relays"></a>
 ### Nested Schema for `relays`
 
+Optional:
+
+- `multihop_port` (Number) The port to use on this server for a multi-hop configuration (type: "wireguard" only).
+- `public_key` (String) The server's public key (type: "wireguard" only).
+- `socks_name` (String) The server's SOCKS5 proxy address (type: "wireguard" only).
+- `ssh_fingerprint_md5` (String) The server's SSH MD5 fingerprint (type: "bridge" only).
+- `ssh_fingerprint_sha256` (String) The server's SSH SHA256 fingerprint (type: "bridge" only).
+
 Read-Only:
 
-- `city_code` (String)
-- `city_name` (String)
-- `country_code` (String)
-- `country_name` (String)
-- `hostname` (String)
-- `ipv4_address` (String)
-- `ipv6_address` (String)
-- `is_active` (Boolean)
-- `is_owned` (Boolean)
-- `multihop_port` (Number)
-- `provider` (String)
-- `public_key` (String)
-- `socks_name` (String)
-- `ssh_fingerprint_md5` (String)
-- `ssh_fingerprint_sha256` (String)
-- `status_messages` (List of String)
-- `type` (String)
+- `city_code` (String) Mullvad's code for the city in which the relay is located.
+- `city_name` (String) Name of the city in which the relay is located.
+- `country_code` (String) Country code (ISO3166-1 Alpha-2) in which the relay is located.
+- `country_name` (String) Name of the country in which the relay is located.
+- `hostname` (String) Mullvad hostname at which the relay can be reached.
+- `ipv4_address` (String) The server's IPv4 address.
+- `ipv6_address` (String) The server's IPv6 address.
+- `is_active` (Boolean) Whether the relay is presently active.
+- `is_owned` (Boolean) Whether the server is owned by Mullvad, or rented.
+- `provider` (String) Hosting provider used for this server.
+- `status_messages` (List of String) Information about the status of the server.
+- `type` (String) The type of VPN running on this server, e.g. `"wireguard"`, or `"openvpn"`.
 
 

@@ -87,21 +87,21 @@ type KeyListResponse struct {
 }
 
 type RelayResponse struct {
-	HostName       string   `json:"hostname" mapstructure:"hostname"`
-	CountryCode    string   `json:"country_code" mapstructure:"country_code"`
-	CountryName    string   `json:"country_name" mapstructure:"country_name"`
-	CityCode       string   `json:"city_code" mapstructure:"city_code"`
-	CityName       string   `json:"city_name" mapstructure:"city_name"`
-	IsActive       bool     `json:"active" mapstructure:"is_active"`
-	IsOwned        bool     `json:"owned" mapstructure:"is_owned"`
-	Provider       string   `json:"provider" mapstructure:"provider"`
-	IpV4Address    string   `json:"ipv4_addr_in" mapstructure:"ipv4_address"`
-	IpV6Address    string   `json:"ipv6_addr_in" mapstructure:"ipv6_address"`
-	Type           string   `json:"type" mapstructure:"type"`
-	StatusMessages []string `json:"status_messages" mapstructure:"status_messages"`
-	PublicKey      string   `json:"pubkey" mapstructure:"public_key,omitempty"`
-	MultiHopPort   int      `json:"multihop_port" mapstructure:"multihop_port,omitempty"`
-	SocksName      string   `json:"socks_name" mapstructure:"socks_name,omitempty"`
-	SshFprSha256   string   `json:"ssh_fingerprint_sha256" mapstructure:"ssh_fingerprint_sha256,omitempty"`
-	SshFprMd5      string   `json:"ssh_fingerprint_md5" mapstructure:"ssh_fingerprint_md5,omitempty"`
+	HostName       string   `json:"hostname"`
+	CountryCode    string   `json:"country_code"`
+	CountryName    string   `json:"country_name"`
+	CityCode       string   `json:"city_code"`
+	CityName       string   `json:"city_name"`
+	IsActive       bool     `json:"active"`
+	IsOwned        bool     `json:"owned"`
+	Provider       string   `json:"provider"`
+	IpV4Address    string   `json:"ipv4_addr_in"`
+	IpV6Address    string   `json:"ipv6_addr_in"`
+	Type           string   `json:"type"`
+	StatusMessages []string `json:"status_messages"`
+	PublicKey      string   `json:"pubkey"`
+	MultiHopPort   int      `json:"multihop_port"`
+	SocksName      string   `json:"socks_name"`
+	SshFprSha256   string   `json:"ssh_fingerprint_sha256"`
+	SshFprMd5      string   `json:"ssh_fingerprint_md5"`
 }

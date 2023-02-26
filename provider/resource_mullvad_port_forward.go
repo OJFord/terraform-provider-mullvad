@@ -1,94 +1,162 @@
 package provider
 
 import (
-	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"context"
+	"fmt"
 	"strconv"
+
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
 
-func resourceMullvadPortForward() *schema.Resource {
-	return &schema.Resource{
+type resourceMullvadPortForward struct {
+	client *mullvadapi.Client
+}
+
+func (r resourceMullvadPortForward) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*mullvadapi.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected type",
+			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client
+}
+
+func (r resourceMullvadPortForward) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_port_forward"
+}
+
+func (r resourceMullvadPortForward) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		Description: "Provides a Mullvad port forward resource. This can be used to create, read, update, and delete forwarding ports on your Mullvad account.",
-
-		Create: resourceMullvadPortForwardCreate,
-		Read:   resourceMullvadPortForwardRead,
-		Delete: resourceMullvadPortForwardDelete,
-
-		Schema: map[string]*schema.Schema{
-			"city_code": {
-				Description: "Mullvad's code for the city in which the relay to which the forwarding target will connect is located, e.g. `\"lon\"` for London.",
-				Required:    true,
-				ForceNew:    true,
-				Type:        schema.TypeString,
+		Attributes: map[string]schema.Attribute{
+			"assigned": schema.BoolAttribute{
+				MarkdownDescription: "Whether the port is currently assigned.",
+				Computed:            true,
 			},
-			"country_code": {
+			"city_code": schema.StringAttribute{
+				MarkdownDescription: "Mullvad's code for the city in which the relay to which the forwarding target will connect is located, e.g. `\"lon\"` for London.",
+				Required:            true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"country_code": schema.StringAttribute{
 				Description: "Country code (ISO3166-1 Alpha-2) in which the relay to which the forwarding target will connect is located.",
 				Required:    true,
-				ForceNew:    true,
-				Type:        schema.TypeString,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
-			"peer": {
+			"peer": schema.StringAttribute{
 				Description: "The public key of the WireGuard peer, if any, to assign forward this port to. (Required for WireGuard; not applicable for OpenVPN connections.",
 				Optional:    true,
-				ForceNew:    true,
-				Type:        schema.TypeString,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
-			"port": {
+			"port": schema.Int64Attribute{
 				Description: "The integer value of the port that will be forwarded.",
 				Computed:    true,
-				ForceNew:    true,
-				Type:        schema.TypeInt,
 			},
 		},
 	}
 }
 
-func resourceMullvadPortForwardCreate(d *schema.ResourceData, m interface{}) error {
-	country_code := d.Get("country_code").(string)
-	city_code := d.Get("city_code").(string)
-
-	var public_key *string = nil
-	if pk := d.Get("peer").(string); pk != "" {
-		public_key = &pk
-	}
-
-	added_port, err := m.(*mullvadapi.Client).AddForwardingPort(country_code, city_code, public_key)
-	if err != nil {
-		return err
-	}
-
-	d.SetId(strconv.Itoa(*added_port))
-	return resourceMullvadPortForwardRead(d, m)
+type MullvadPortForwardModel struct {
+	Assigned      types.Bool   `tfsdk:"assigned"`
+	CityCode      types.String `tfsdk:"city_code"`
+	CountryCode   types.String `tfsdk:"country_code"`
+	PeerPublicKey types.String `tfsdk:"peer"`
+	Port          types.Int64  `tfsdk:"port"`
 }
 
-func resourceMullvadPortForwardRead(d *schema.ResourceData, m interface{}) error {
-	country_code := d.Get("country_code").(string)
-	city_code := d.Get("city_code").(string)
-	port, err := strconv.Atoi(d.Id())
-	if err != nil {
-		return err
+func (r resourceMullvadPortForward) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var diags diag.Diagnostics
+	var data MullvadPortForwardModel
+
+	diags = req.Plan.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	port_forward, err := m.(*mullvadapi.Client).GetForwardingPort(country_code, city_code, port)
-	if err != nil {
-		return err
+	var maybePeerPublicKey string
+	if !data.PeerPublicKey.IsUnknown() {
+		maybePeerPublicKey = data.PeerPublicKey.ValueString()
 	}
 
-	d.Set("port", port_forward.Port)
-	d.Set("assigned", port_forward.PublicKey != "")
-	d.Set("peer", port_forward.PublicKey)
+	addedPort, err := r.client.AddForwardingPort(data.CountryCode.ValueString(), data.CityCode.ValueString(), &maybePeerPublicKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to add forwarding port", err.Error())
+		return
+	}
 
-	return nil
+	data.Port = types.Int64Value(int64(*addedPort))
+	data.Assigned = types.BoolValue(!data.PeerPublicKey.IsUnknown())
+
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	resp.State.SetAttribute(ctx, path.Root("id"), strconv.Itoa(*addedPort))
 }
 
-func resourceMullvadPortForwardDelete(d *schema.ResourceData, m interface{}) error {
-	country_code := d.Get("country_code").(string)
-	city_code := d.Get("city_code").(string)
-	port := d.Get("port").(int)
+func (r resourceMullvadPortForward) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var diags diag.Diagnostics
+	var data MullvadPortForwardModel
 
-	if err := m.(*mullvadapi.Client).RemoveForwardingPort(country_code, city_code, port); err != nil {
-		return err
+	diags = req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	return nil
+	portForward, err := r.client.GetForwardingPort(data.CountryCode.ValueString(), data.CityCode.ValueString(), int(data.Port.ValueInt64()))
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get forwarding port", err.Error())
+		return
+	}
+
+	data.Assigned = types.BoolValue(portForward.PublicKey != "")
+	data.PeerPublicKey = types.StringValue(portForward.PublicKey)
+
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r resourceMullvadPortForward) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.AddError(
+		"This should not happen",
+		"All attrs are supposed to force a replacement, since we cannot update in-place.",
+	)
+}
+
+func (r resourceMullvadPortForward) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var diags diag.Diagnostics
+	var data MullvadPortForwardModel
+
+	diags = req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if err := r.client.RemoveForwardingPort(data.CountryCode.ValueString(), data.CityCode.ValueString(), int(data.Port.ValueInt64())); err != nil {
+		resp.Diagnostics.AddError("Failed to remove forwarding port", err.Error())
+		return
+	}
 }

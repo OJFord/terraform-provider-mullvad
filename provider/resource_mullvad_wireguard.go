@@ -1,83 +1,169 @@
 package provider
 
 import (
+	"context"
+	"fmt"
+
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceMullvadWireguard() *schema.Resource {
-	return &schema.Resource{
+type resourceMullvadWireguard struct {
+	client *mullvadapi.Client
+}
+
+func (r resourceMullvadWireguard) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*mullvadapi.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected type",
+			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client
+}
+
+func (r resourceMullvadWireguard) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_wireguard"
+}
+
+func (r resourceMullvadWireguard) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		Description: "Provides a Mullvad WireGuard resource. This can be used to create, read, and delete WireGuard keys on your Mullvad account.",
 
-		Create: resourceMullvadWireguardCreate,
-		Read:   resourceMullvadWireguardRead,
-		Delete: resourceMullvadWireguardDelete,
-
-		Schema: map[string]*schema.Schema{
-			"created": {
+		Attributes: map[string]schema.Attribute{
+			"created": schema.StringAttribute{
 				Description: "The date the peer was registered.",
 				Computed:    true,
-				Type:        schema.TypeString,
 			},
-			"ipv4_address": {
-				Description: "The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
-				Computed:    true,
-				Type:        schema.TypeString,
+			"ipv4_address": schema.StringAttribute{
+				MarkdownDescription: "The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
+				Computed:            true,
 			},
-			"ipv6_address": {
-				Description: "The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
-				Computed:    true,
-				Type:        schema.TypeString,
+			"ipv6_address": schema.StringAttribute{
+				MarkdownDescription: "The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).",
+				Computed:            true,
 			},
-			"ports": {
+			"ports": schema.ListAttribute{
 				Description: "The ports forwarded for the registered peer.",
 				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeInt,
-				},
-				Type: schema.TypeList,
+				ElementType: types.Int64Type,
 			},
-			"public_key": {
+			"public_key": schema.StringAttribute{
 				Description: "The public key of the WireGuard peer to register.",
-				ForceNew:    true,
-				Required:    true,
-				Type:        schema.TypeString,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Required: true,
 			},
 		},
 	}
 }
 
-func resourceMullvadWireguardCreate(d *schema.ResourceData, m interface{}) error {
-	pubkey := d.Get("public_key").(string)
-
-	err := m.(*mullvadapi.Client).AddWireGuardKey(pubkey)
-	if err != nil {
-		return err
-	}
-
-	d.SetId(pubkey)
-	return resourceMullvadWireguardRead(d, m)
+type MullvadWireguardModel struct {
+	PublicKey   types.String `tfsdk:"public_key"`
+	Created     types.String `tfsdk:"created"`
+	IPv4Address types.String `tfsdk:"ipv4_address"`
+	IPv6Address types.String `tfsdk:"ipv6_address"`
+	Ports       types.List   `tfsdk:"ports"`
 }
 
-func resourceMullvadWireguardRead(d *schema.ResourceData, m interface{}) error {
-	key, err := m.(*mullvadapi.Client).GetWireGuardKey(d.Get("public_key").(string))
+func (data *MullvadWireguardModel) populateFrom(ctx context.Context, key *mullvadapi.KeyResponse, diags *diag.Diagnostics) {
+	var diags_ diag.Diagnostics
+
+	data.Created = types.StringValue(key.Created)
+	data.IPv4Address = types.StringValue(key.IpV4Address)
+	data.IPv6Address = types.StringValue(key.IpV6Address)
+	data.Ports, diags_ = types.ListValueFrom(ctx, types.Int64Type, key.Ports)
+	diags.Append(diags_...)
+}
+
+func (r resourceMullvadWireguard) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("public_key"), req, resp)
+}
+
+func (r resourceMullvadWireguard) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var diags diag.Diagnostics
+	var data MullvadWireguardModel
+
+	diags = req.Plan.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key, err := r.client.AddWireGuardKey(data.PublicKey.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to add key", err.Error())
+		return
+	}
+
+	data.populateFrom(ctx, key, &resp.Diagnostics)
+
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+}
+
+func (r resourceMullvadWireguard) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var diags diag.Diagnostics
+	var data MullvadWireguardModel
+
+	diags = req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key, err := r.client.GetWireGuardKey(data.PublicKey.ValueString())
 	if err != nil {
 		if err == mullvadapi.ErrKeyNotFound {
-			d.SetId("")
-			return nil
+			resp.State.RemoveResource(ctx)
+			return
 		}
 
-		return err
+		resp.Diagnostics.AddError("Failed to get key", err.Error())
+		return
 	}
 
-	d.Set("created", key.Created)
-	d.Set("ipv4_address", key.IpV4Address)
-	d.Set("ipv6_address", key.IpV6Address)
-	d.Set("ports", key.Ports)
+	data.populateFrom(ctx, key, &resp.Diagnostics)
 
-	return nil
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
 }
 
-func resourceMullvadWireguardDelete(d *schema.ResourceData, m interface{}) error {
-	return m.(*mullvadapi.Client).RevokeWireGuardKey(d.Get("public_key").(string))
+func (r resourceMullvadWireguard) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	resp.Diagnostics.AddError(
+		"This should not happen",
+		"All attrs are supposed to force a replacement, since we cannot update in-place.",
+	)
+}
+
+func (r resourceMullvadWireguard) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var diags diag.Diagnostics
+	var data MullvadWireguardModel
+
+	diags = req.State.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	err := r.client.RevokeWireGuardKey(data.PublicKey.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to revoke key", err.Error())
+		return
+	}
 }

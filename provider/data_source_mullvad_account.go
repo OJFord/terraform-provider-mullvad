@@ -1,77 +1,119 @@
 package provider
 
 import (
+	"context"
+	"fmt"
+	"log"
+
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var accountSchema = map[string]*schema.Schema{
-	"expires_at": {
-		Description: "Timestamp (RFC3339) at which the account expires, without new payment.",
-		Computed:    true,
-		Type:        schema.TypeString,
-	},
-	"id": {
-		Description: "The (secret) Mullvad account ID.",
-		Computed:    true,
-		Sensitive:   true,
-		Type:        schema.TypeString,
-	},
-	"is_active": {
-		Description: "Whether the Mullvad account is active.",
-		Computed:    true,
-		Type:        schema.TypeBool,
-	},
-	"is_subscription_unpaid": {
-		Description: "Whether payment is due on the subscription method (if applicable).",
-		Computed:    true,
-		Type:        schema.TypeBool,
-	},
-	"max_forwarding_ports": {
-		Description: "Maximum number of forwarding ports which may be configured.",
-		Computed:    true,
-		Type:        schema.TypeInt,
-	},
-	"max_wireguard_peers": {
-		Description: "Maximum number of WireGuard peers which may be configured.",
-		Computed:    true,
-		Type:        schema.TypeInt,
-	},
-	"subscription_method": {
-		Description: "Method used to pay the subscription, if there is one.",
-		Computed:    true,
-		Type:        schema.TypeString,
-	},
+type datasourceMullvadAccount struct {
+	client *mullvadapi.Client
 }
 
-func dataSourceMullvadAccount() *schema.Resource {
-	return &schema.Resource{
-		Description: "Information about the Mullvad account.",
-		Schema:      accountSchema,
+func (d datasourceMullvadAccount) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 
-		Read: dataSourceMullvadAccountRead,
+	client, ok := req.ProviderData.(*mullvadapi.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected type",
+			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
+		)
+		return
+	}
+
+	d.client = client
+}
+
+func (d datasourceMullvadAccount) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_account"
+}
+
+func (d datasourceMullvadAccount) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		MarkdownDescription: "Information about the Mullvad account.",
+		Attributes: map[string]schema.Attribute{
+			"expires_at": schema.StringAttribute{
+				Description: "Timestamp (RFC3339) at which the account expires, without new payment.",
+				Computed:    true,
+			},
+			"id": schema.StringAttribute{
+				Description: "The (secret) Mullvad account ID. Required if not set on the provider.",
+				Computed:    true,
+				Optional:    true,
+				Sensitive:   true,
+			},
+			"is_active": schema.BoolAttribute{
+				Description: "Whether the Mullvad account is active.",
+				Computed:    true,
+			},
+			"is_subscription_unpaid": schema.BoolAttribute{
+				Description: "Whether payment is due on the subscription method (if applicable).",
+				Computed:    true,
+			},
+			"max_forwarding_ports": schema.Int64Attribute{
+				Description: "Maximum number of forwarding ports which may be configured.",
+				Computed:    true,
+			},
+			"max_wireguard_peers": schema.Int64Attribute{
+				Description: "Maximum number of WireGuard peers which may be configured.",
+				Computed:    true,
+			},
+			"subscription_method": schema.StringAttribute{
+				Description: "Method used to pay the subscription, if there is one.",
+				Computed:    true,
+			},
+		},
 	}
 }
 
-func populateAccountResource(d *schema.ResourceData, acc *mullvadapi.Account) {
-	d.SetId(acc.Token)
-	d.Set("expires_at", acc.ExpiryDate)
-	d.Set("is_active", acc.IsActive)
-	d.Set("is_subscription_unpaid", acc.Subscription == nil || acc.Subscription.IsUnpaid)
-	d.Set("max_forwarding_ports", acc.MaxForwardingPorts)
-	d.Set("max_wireguard_peers", acc.MaxWireGuardPeers)
-
-	if acc.Subscription != nil {
-		d.Set("subscription_method", acc.Subscription.PaymentMethod)
-	}
+type MullvadAccountModel struct {
+	ExpiresAt            types.String `tfsdk:"expires_at"`
+	ID                   types.String `tfsdk:"id"`
+	IsActive             types.Bool   `tfsdk:"is_active"`
+	IsSubscriptionUnpaid types.Bool   `tfsdk:"is_subscription_unpaid"`
+	MaxForwardingPorts   types.Int64  `tfsdk:"max_forwarding_ports"`
+	MaxWireGuardPeers    types.Int64  `tfsdk:"max_wireguard_peers"`
+	SubscriptionMethod   types.String `tfsdk:"subscription_method"`
 }
 
-func dataSourceMullvadAccountRead(d *schema.ResourceData, m interface{}) error {
-	acc, err := m.(*mullvadapi.Client).GetAccount()
+func (data *MullvadAccountModel) populateFrom(acc *mullvadapi.Account, diags *diag.Diagnostics) {
+	data.ID = types.StringValue(acc.Token)
+	data.ExpiresAt = types.StringValue(acc.ExpiryDate)
+	data.IsActive = types.BoolValue(acc.IsActive)
+	data.IsSubscriptionUnpaid = types.BoolValue(acc.Subscription == nil || acc.Subscription.IsUnpaid)
+	data.MaxForwardingPorts = types.Int64Value(int64(acc.MaxForwardingPorts))
+	data.MaxWireGuardPeers = types.Int64Value(int64(acc.MaxWireGuardPeers))
+	data.SubscriptionMethod = types.StringValue(acc.Subscription.PaymentMethod)
+}
+
+func (d datasourceMullvadAccount) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var diags diag.Diagnostics
+	var data MullvadAccountModel
+
+	diags = req.Config.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	log.Printf("Reading %s", data.ID)
+	d.client.AccountID = data.ID.String()
+	acc, err := d.client.Login()
 	if err != nil {
-		return err
+		resp.Diagnostics.AddError("Failed to log in", err.Error())
+		return
 	}
 
-	populateAccountResource(d, acc)
-	return nil
+	data.populateFrom(acc, &resp.Diagnostics)
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
 }

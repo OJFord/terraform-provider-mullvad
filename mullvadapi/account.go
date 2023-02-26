@@ -18,6 +18,7 @@ func (c *Client) CreateAccount() (*Account, error) {
 	}
 
 	login := resp.Result().(*LoginResponse)
+	c.AccountID = login.Account.Token
 	c.AuthToken = login.AuthToken
 
 	return &login.Account, nil

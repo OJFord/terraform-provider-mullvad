@@ -1,56 +1,112 @@
 package provider
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"strings"
+
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceMullvadCity() *schema.Resource {
-	return &schema.Resource{
-		Description: "Mullvad location codes by city name.",
+type datasourceMullvadCity struct {
+	client *mullvadapi.Client
+}
 
-		Read: dataSourceMullvadCityRead,
-		Schema: map[string]*schema.Schema{
-			"name": {
+func (d datasourceMullvadCity) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*mullvadapi.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected type",
+			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
+		)
+		return
+	}
+
+	d.client = client
+}
+
+func (d datasourceMullvadCity) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_city"
+}
+
+func (d datasourceMullvadCity) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Mullvad location codes by city name.",
+		Attributes: map[string]schema.Attribute{
+			"name": schema.StringAttribute{
 				Description: "Name of the city to lookup.",
-				Type:        schema.TypeString,
 				Required:    true,
-				ForceNew:    true,
 			},
 
-			"country_code": {
+			"country_code": schema.StringAttribute{
 				Description: "The ISO3166-1 Alpha-2 country code.",
-				Type:        schema.TypeString,
 				Computed:    true,
 			},
 
-			"city_code": {
+			"city_code": schema.StringAttribute{
 				Description: "The 3-letter code used to refer to the city in Mullvad's API.",
-				Type:        schema.TypeString,
 				Computed:    true,
 			},
 		},
 	}
 }
 
-func dataSourceMullvadCityRead(d *schema.ResourceData, m interface{}) error {
-	cities, err := m.(*mullvadapi.Client).ListCities()
+type MullvadCityModel struct {
+	ID          types.String `tfsdk:"id"`
+	CityCode    types.String `tfsdk:"city_code"`
+	CountryCode types.String `tfsdk:"country_code"`
+	Name        types.String `tfsdk:"name"`
+}
+
+func (data *MullvadCityModel) populateFrom(city *mullvadapi.CityResponse, diags *diag.Diagnostics) {
+	data.ID = types.StringValue(city.CountryCityCode)
+	codes := strings.Split(city.CountryCityCode, "-")
+	if len(codes) != 2 {
+		diags.AddError(
+			"Unexpected country-city code format",
+			fmt.Sprintf("Expected `country-city`, but got %s", codes),
+		)
+		return
+	}
+	data.CountryCode = types.StringValue(codes[0])
+	data.CityCode = types.StringValue(codes[1])
+}
+
+func (d datasourceMullvadCity) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var diags diag.Diagnostics
+	var data MullvadCityModel
+
+	diags = req.Config.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	cities, err := d.client.ListCities()
 	if err != nil {
-		return err
+		resp.Diagnostics.AddError("Failed to list cities", err.Error())
+		return
 	}
 
 	for _, city := range *cities {
-		if city.Name == d.Get("name").(string) {
-			d.SetId(city.CountryCityCode)
-			codes := strings.Split(city.CountryCityCode, "-")
-			d.Set("country_code", codes[0])
-			d.Set("city_code", codes[1])
-			return nil
+		if types.StringValue(city.Name) == data.Name {
+			data.populateFrom(&city, &resp.Diagnostics)
+			diags = resp.State.Set(ctx, &data)
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	}
 
-	return errors.New(fmt.Sprintf("No match for city '%s'", d.Get("name")))
+	resp.Diagnostics.AddError(
+		"Failed to find city",
+		fmt.Sprintf("No match for city '%s'", data.Name),
+	)
 }

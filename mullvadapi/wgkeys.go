@@ -8,24 +8,24 @@ import (
 
 var ErrKeyNotFound = errors.New("Failed to find key")
 
-func (c *Client) AddWireGuardKey(public_key string) error {
+func (c *Client) AddWireGuardKey(public_key string) (*KeyResponse, error) {
 	body := &KeyRequest{
 		public_key,
 	}
 
 	resp, err := c.R().SetBody(body).SetResult(KeyResponse{}).Post("www/wg-pubkeys/add/")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if resp.StatusCode() != http.StatusCreated {
 		log.Printf("[ERROR] %s", resp.Status())
-		return errors.New("Failed to register public key")
+		return nil, errors.New("Failed to register public key")
 	}
 
 	result := resp.Result().(*KeyResponse)
 	log.Printf("[DEBUG] Created: %s", result.KeyPair.PublicKey)
-	return nil
+	return result, nil
 }
 
 func (c *Client) ListWireGuardKeys() (*KeyListResponse, error) {

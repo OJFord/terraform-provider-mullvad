@@ -49,7 +49,7 @@ resource "wireguard_asymmetric_key" "target_peer" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `assigned` (Boolean) Whether the port is currently assigned.
 - `port` (Number) The integer value of the port that will be forwarded.
 
 

@@ -1,143 +1,144 @@
 package provider
 
 import (
-	"errors"
-	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/mitchellh/mapstructure"
+	"context"
 	"log"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
 
-func dataSourceMullvadRelay() *schema.Resource {
-	return &schema.Resource{
+type datasourceMullvadRelay struct {
+	client *mullvadapi.Client
+}
+
+func (d datasourceMullvadRelay) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*mullvadapi.Client)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected type",
+			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
+		)
+		return
+	}
+
+	d.client = client
+}
+
+func (d datasourceMullvadRelay) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_relay"
+}
+
+func (d datasourceMullvadRelay) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		Description: "Optionally filtered list of Mullvad servers.",
 
-		Read: dataSourceMullvadRelayRead,
-		Schema: map[string]*schema.Schema{
-			"filter": {
+		Attributes: map[string]schema.Attribute{
+			"filter": schema.SingleNestedAttribute{
 				Description: "Filter to apply to the available relays.",
-				Type:        schema.TypeSet,
 				Optional:    true,
-				ForceNew:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"city_name": {
-							Description: "City in which the returned relays should be located.",
-							Optional:    true,
-							Type:        schema.TypeString,
-						},
-						"country_code": {
-							Description: "Country code (ISO3166-1 Alpha-2) in which the returned relays should be located.",
-							Optional:    true,
-							Type:        schema.TypeString,
-						},
-						"type": {
-							Description: "Type of VPN that the returned relays should be operating - e.g. `\"wireguard\"`, `\"openvpn\"`.",
-							Optional:    true,
-							Type:        schema.TypeString,
-						},
+				Attributes: map[string]schema.Attribute{
+					"city_name": schema.StringAttribute{
+						Description: "City in which the returned relays should be located.",
+						Optional:    true,
+					},
+					"country_code": schema.StringAttribute{
+						Description: "Country code (ISO3166-1 Alpha-2) in which the returned relays should be located.",
+						Optional:    true,
+					},
+					"type": schema.StringAttribute{
+						Description: "Type of VPN that the returned relays should be operating - e.g. `\"wireguard\"`, `\"openvpn\"`.",
+						Optional:    true,
 					},
 				},
 			},
 
-			"relays": {
+			"relays": schema.ListNestedAttribute{
 				Description: "List of the (filtered) available relays.",
-				Type:        schema.TypeList,
 				Computed:    true,
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"hostname": {
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"hostname": schema.StringAttribute{
 							Description: "Mullvad hostname at which the relay can be reached.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"country_code": {
+						"country_code": schema.StringAttribute{
 							Description: "Country code (ISO3166-1 Alpha-2) in which the relay is located.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"country_name": {
+						"country_name": schema.StringAttribute{
 							Description: "Name of the country in which the relay is located.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"city_code": {
+						"city_code": schema.StringAttribute{
 							Description: "Mullvad's code for the city in which the relay is located.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"city_name": {
+						"city_name": schema.StringAttribute{
 							Description: "Name of the city in which the relay is located.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"is_active": {
+						"is_active": schema.BoolAttribute{
 							Description: "Whether the relay is presently active.",
 							Computed:    true,
-							Type:        schema.TypeBool,
 						},
-						"is_owned": {
+						"is_owned": schema.BoolAttribute{
 							Description: "Whether the server is owned by Mullvad, or rented.",
 							Computed:    true,
-							Type:        schema.TypeBool,
 						},
-						"provider": {
+						"provider": schema.StringAttribute{
 							Description: "Hosting provider used for this server.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"ipv4_address": {
+						"ipv4_address": schema.StringAttribute{
 							Description: "The server's IPv4 address.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"ipv6_address": {
+						"ipv6_address": schema.StringAttribute{
 							Description: "The server's IPv6 address.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"type": {
+						"type": schema.StringAttribute{
 							Description: "The type of VPN running on this server, e.g. `\"wireguard\"`, or `\"openvpn\"`.",
 							Computed:    true,
-							Type:        schema.TypeString,
 						},
-						"status_messages": {
+						"status_messages": schema.ListAttribute{
 							Description: "Information about the status of the server.",
 							Computed:    true,
-							Type:        schema.TypeList,
-							Elem: &schema.Schema{
-								Type: schema.TypeString,
-							},
+							ElementType: types.StringType,
 						},
-						"public_key": {
+						"public_key": schema.StringAttribute{
 							Description: "The server's public key (type: \"wireguard\" only).",
 							Computed:    true,
 							Optional:    true,
-							Type:        schema.TypeString,
 						},
-						"multihop_port": {
+						"multihop_port": schema.Int64Attribute{
 							Description: "The port to use on this server for a multi-hop configuration (type: \"wireguard\" only).",
 							Computed:    true,
 							Optional:    true,
-							Type:        schema.TypeInt,
 						},
-						"socks_name": {
+						"socks_name": schema.StringAttribute{
 							Description: "The server's SOCKS5 proxy address (type: \"wireguard\" only).",
 							Computed:    true,
 							Optional:    true,
-							Type:        schema.TypeString,
 						},
-						"ssh_fingerprint_md5": {
+						"ssh_fingerprint_md5": schema.StringAttribute{
 							Description: "The server's SSH MD5 fingerprint (type: \"bridge\" only).",
 							Computed:    true,
 							Optional:    true,
-							Type:        schema.TypeString,
 						},
-						"ssh_fingerprint_sha256": {
+						"ssh_fingerprint_sha256": schema.StringAttribute{
 							Description: "The server's SSH SHA256 fingerprint (type: \"bridge\" only).",
 							Computed:    true,
 							Optional:    true,
-							Type:        schema.TypeString,
 						},
 					},
 				},
@@ -146,51 +147,95 @@ func dataSourceMullvadRelay() *schema.Resource {
 	}
 }
 
-func dataSourceMullvadRelayRead(d *schema.ResourceData, m interface{}) error {
-	filters, ok := d.GetOk("filter")
-	if !ok {
-		return errors.New("Failed read filters")
+type MullvadRelayFilterModel struct {
+	CityName    types.String `tfsdk:"city_name"`
+	CountryCode types.String `tfsdk:"country_code"`
+	Type        types.String `tfsdk:"type"`
+}
+
+type MullvadRelayRelayModel struct {
+	Hostname             types.String `tfsdk:"hostname"`
+	CountryCode          types.String `tfsdk:"country_code"`
+	CountryName          types.String `tfsdk:"country_name"`
+	CityCode             types.String `tfsdk:"city_code"`
+	CityName             types.String `tfsdk:"city_name"`
+	IsActive             types.Bool   `tfsdk:"is_active"`
+	IsOwned              types.Bool   `tfsdk:"is_owned"`
+	Provider             types.String `tfsdk:"provider"`
+	IpV4Address          types.String `tfsdk:"ipv4_address"`
+	IpV6Address          types.String `tfsdk:"ipv6_address"`
+	PublicKey            types.String `tfsdk:"public_key"`
+	MultiHopPort         types.Int64  `tfsdk:"multihop_port"`
+	SocksName            types.String `tfsdk:"socks_name"`
+	SSHFingerprintMD5    types.String `tfsdk:"ssh_fingerprint_md5"`
+	SSHFingerprintSHA256 types.String `tfsdk:"ssh_fingerprint_sha256"`
+	StatusMessages       types.List   `tfsdk:"status_messages"`
+	Type                 types.String `tfsdk:"type"`
+}
+
+func (data *MullvadRelayRelayModel) populateFrom(ctx context.Context, relay *mullvadapi.RelayResponse, diags *diag.Diagnostics) {
+	var diags_ diag.Diagnostics
+
+	data.Hostname = types.StringValue(relay.HostName + ".mullvad.net")
+	data.CountryCode = types.StringValue(relay.CountryCode)
+	data.CountryName = types.StringValue(relay.CountryName)
+	data.CityCode = types.StringValue(relay.CityCode)
+	data.CityName = types.StringValue(relay.CityName)
+	data.IsActive = types.BoolValue(relay.IsActive)
+	data.IsOwned = types.BoolValue(relay.IsOwned)
+	data.Provider = types.StringValue(relay.Provider)
+	data.IpV4Address = types.StringValue(relay.IpV4Address)
+	data.IpV6Address = types.StringValue(relay.IpV6Address)
+	data.PublicKey = types.StringValue(relay.PublicKey)
+	data.MultiHopPort = types.Int64Value(int64(relay.MultiHopPort))
+	data.SocksName = types.StringValue(relay.SocksName)
+	data.SSHFingerprintMD5 = types.StringValue(relay.SshFprMd5)
+	data.SSHFingerprintSHA256 = types.StringValue(relay.SshFprSha256)
+	data.StatusMessages, diags_ = types.ListValueFrom(ctx, types.StringType, relay.StatusMessages)
+	diags.Append(diags_...)
+}
+
+type MullvadRelayModel struct {
+	Filter MullvadRelayFilterModel  `tfsdk:"filter"`
+	Relays []MullvadRelayRelayModel `tfsdk:"relays"`
+}
+
+func (d datasourceMullvadRelay) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var diags diag.Diagnostics
+	var data MullvadRelayModel
+
+	diags = req.Config.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	var city_name string
-	var country_code string
-	var kind = "all"
-	for _, f := range filters.(*schema.Set).List() {
-		filter := f.(map[string]interface{})
-
-		if f, exists := filter["city_name"]; exists {
-			city_name = f.(string)
-		}
-
-		if f, exists := filter["country_code"]; exists {
-			country_code = f.(string)
-		}
-
-		if f, exists := filter["type"]; exists {
-			kind = f.(string)
-		}
+	var kind string
+	if data.Filter.Type.IsUnknown() {
+		kind = "all"
+	} else {
+		kind = data.Filter.Type.ValueString()
 	}
 
-	relays, err := m.(*mullvadapi.Client).ListRelays(kind)
+	relays, err := d.client.ListRelays(kind)
 	if err != nil {
-		return err
+		resp.Diagnostics.AddError("Failed to list relays", err.Error())
+		return
 	}
 
-	matching := make([]map[string]interface{}, 0)
+	data.Relays = make([]MullvadRelayRelayModel, 0)
 	for _, relay := range *relays {
 		log.Printf("[INFO] Checking filter against %s", relay.HostName)
 
-		if (city_name == "" || relay.CityName == city_name) && (country_code == "" || relay.CountryCode == country_code) {
+		if (data.Filter.CityName.ValueString() == "" || relay.CityName == data.Filter.CityName.ValueString()) && (data.Filter.CountryCode.ValueString() == "" || relay.CountryCode == data.Filter.CountryCode.ValueString()) {
 			log.Printf("[INFO] Match found: %s", relay.HostName)
-			m := make(map[string]interface{})
-			mapstructure.Decode(relay, &m)
-			m["hostname"] = m["hostname"].(string) + ".mullvad.net"
 
-			matching = append(matching, m)
+			m := MullvadRelayRelayModel{}
+			m.populateFrom(ctx, &relay, &resp.Diagnostics)
+			data.Relays = append(data.Relays, m)
 		}
 	}
 
-	d.SetId(filters.(*schema.Set).GoString())
-	d.Set("relays", matching)
-	return nil
+	diags = resp.State.Set(ctx, &data)
+	resp.Diagnostics.Append(diags...)
 }
