@@ -3,8 +3,8 @@ package provider
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -22,14 +22,27 @@ type MullvadProvider struct {
 	client *mullvadapi.Client
 }
 
+type mullvadDataSource struct {
+	client *mullvadapi.Client
+}
+
 type mullvadResource struct {
 	client *mullvadapi.Client
 }
 
-func (r *mullvadResource) configureFromProvider(providerData interface{}, diags *diag.Diagnostics) {
+type mullvadReadablePrivateState interface {
+	GetKey(ctx context.Context, key string) ([]byte, diag.Diagnostics)
+}
+
+type mullvadWritablePrivateState interface {
+	mullvadReadablePrivateState
+	SetKey(ctx context.Context, key string, value []byte) diag.Diagnostics
+}
+
+func getClientFromProvider(providerData interface{}, diags *diag.Diagnostics) *mullvadapi.Client {
 	if providerData == nil {
 		// Not configured yet, but we'll be called again
-		return
+		return nil
 	}
 
 	client, ok := providerData.(*mullvadapi.Client)
@@ -38,10 +51,49 @@ func (r *mullvadResource) configureFromProvider(providerData interface{}, diags 
 			"Unexpected type",
 			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", providerData),
 		)
+		return nil
+	}
+
+	return client
+}
+
+func (d *mullvadDataSource) configureFromProvider(providerData interface{}, diags *diag.Diagnostics) {
+	d.client = getClientFromProvider(providerData, diags)
+}
+
+func (r *mullvadResource) configureFromProvider(providerData interface{}, diags *diag.Diagnostics) {
+	r.client = getClientFromProvider(providerData, diags)
+}
+
+var _account *string
+
+func (r *mullvadResource) setAccount(ctx context.Context, state interface{}, account string, diags *diag.Diagnostics) {
+	_account = &account
+	r.client.Config.AccountToken = _account
+	if state, ok := state.(mullvadWritablePrivateState); ok && !reflect.ValueOf(state).IsNil() {
+		diags.Append(state.SetKey(ctx, "account", []byte(account))...)
+	}
+}
+
+func (r *mullvadResource) configureAccount(ctx context.Context, state interface{}, diags *diag.Diagnostics) {
+	if r.client.Config.AccountToken != nil {
+		r.setAccount(ctx, state, *r.client.Config.AccountToken, diags)
 		return
 	}
 
-	r.client = client
+	if state, ok := state.(mullvadReadablePrivateState); ok && !reflect.ValueOf(state).IsNil() {
+		val, diags_ := state.GetKey(ctx, "account")
+		diags.Append(diags_...)
+		if val != nil {
+			r.setAccount(ctx, nil, string(val), diags)
+			return
+		}
+	}
+
+	if _account != nil {
+		r.setAccount(ctx, state, *_account, diags)
+		return
+	}
 }
 
 func New() provider.Provider {
@@ -85,11 +137,15 @@ func (p *MullvadProvider) Configure(ctx context.Context, req provider.ConfigureR
 		return
 	}
 
-	accountToken := data.AccountToken.ValueString()
-	p.client, err = mullvadapi.GetClient(strings.Replace(accountToken, " ", "", -1))
+	p.client, err = mullvadapi.GetClient()
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to get client", err.Error())
 		return
+	}
+
+	if !data.AccountToken.IsUnknown() && !data.AccountToken.IsNull() {
+		accountToken := data.AccountToken.ValueString()
+		p.client.Config.AccountToken = &accountToken
 	}
 
 	resp.DataSourceData = p.client

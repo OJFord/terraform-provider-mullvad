@@ -3,25 +3,30 @@ package mullvadapi
 import (
 	"errors"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"log"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
+
+type Config struct {
+	AccountToken *string `json:"accountToken"`
+	AuthToken    *string `json:"authToken"`
+}
 
 type Client struct {
 	resty.Client
-	AccountID string
-	AuthToken string
+	*Config
 }
 
-func GetClient(account_id string) (*Client, error) {
+func GetClient() (*Client, error) {
 	rclient := resty.New().EnableTrace().SetDebug(true)
+	config := Config{}
 	client := Client{
 		*rclient,
-		account_id,
-		"",
+		&config,
 	}
 
 	client.SetHostURL("https://api.mullvad.net")
@@ -41,17 +46,20 @@ func GetClient(account_id string) (*Client, error) {
 			return nil
 		}
 
-		for client.AuthToken == "" && client.AccountID == "" {
+		for client.Config.AccountToken == nil {
 			// If the `account_id` is not set on the provider,
 			// but instead comes from a `mullvad_account`,
 			// we need to wait until it's read for login.
 			time.Sleep(1)
 		}
 
-		if _, err := client.Login(); err != nil {
-			return err
+		if client.Config.AuthToken == nil {
+			if _, err := client.Login(); err != nil {
+				return err
+			}
 		}
-		req.SetHeader("Authorization", "Token "+client.AuthToken)
+
+		req.SetHeader("Authorization", fmt.Sprintf("Token %s", *client.Config.AuthToken))
 		return nil
 	})
 
@@ -59,7 +67,11 @@ func GetClient(account_id string) (*Client, error) {
 }
 
 func (c *Client) Login() (*Account, error) {
-	resp, err := c.R().SetResult(LoginResponse{}).Get(fmt.Sprintf("www/accounts/%s/", c.AccountID))
+	if c.Config.AccountToken == nil {
+		return nil, errors.New("AccountToken not set")
+	}
+
+	resp, err := c.R().SetResult(LoginResponse{}).Get(fmt.Sprintf("www/accounts/%s/", *c.Config.AccountToken))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +84,7 @@ func (c *Client) Login() (*Account, error) {
 	}
 
 	login := resp.Result().(*LoginResponse)
-	c.AuthToken = login.AuthToken
+	c.Config.AuthToken = &login.AuthToken
 
 	return &login.Account, nil
 }

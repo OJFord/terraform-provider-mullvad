@@ -73,6 +73,7 @@ type MullvadPortForwardModel struct {
 }
 
 func (r *resourceMullvadPortForward) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	r.configureAccount(ctx, resp.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 
@@ -102,6 +103,7 @@ func (r *resourceMullvadPortForward) Create(ctx context.Context, req resource.Cr
 }
 
 func (r *resourceMullvadPortForward) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	r.configureAccount(ctx, resp.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 
@@ -132,6 +134,7 @@ func (r *resourceMullvadPortForward) Update(ctx context.Context, req resource.Up
 }
 
 func (r *resourceMullvadPortForward) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	r.configureAccount(ctx, req.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 

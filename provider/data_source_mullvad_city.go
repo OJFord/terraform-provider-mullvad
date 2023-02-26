@@ -13,7 +13,7 @@ import (
 )
 
 type datasourceMullvadCity struct {
-	mullvadResource
+	mullvadDataSource
 }
 
 func (d *datasourceMullvadCity) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {

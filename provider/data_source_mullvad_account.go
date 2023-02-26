@@ -13,7 +13,7 @@ import (
 )
 
 type datasourceMullvadAccount struct {
-	mullvadResource
+	mullvadDataSource
 }
 
 func (d *datasourceMullvadAccount) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
@@ -95,7 +95,11 @@ func (d *datasourceMullvadAccount) Read(ctx context.Context, req datasource.Read
 	tflog.Info(ctx, "Reading", map[string]interface{}{
 		"id": data.ID,
 	})
-	d.client.AccountID = data.ID.String()
+	if !data.ID.IsUnknown() && !data.ID.IsNull() {
+		accountToken := data.ID.ValueString()
+		d.client.Config.AccountToken = &accountToken
+	}
+
 	acc, err := d.client.Login()
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to log in", err.Error())

@@ -85,6 +85,7 @@ func (r *resourceMullvadWireguard) ImportState(ctx context.Context, req resource
 }
 
 func (r *resourceMullvadWireguard) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	r.configureAccount(ctx, resp.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 
@@ -107,6 +108,7 @@ func (r *resourceMullvadWireguard) Create(ctx context.Context, req resource.Crea
 }
 
 func (r *resourceMullvadWireguard) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	r.configureAccount(ctx, resp.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 
@@ -141,6 +143,7 @@ func (r *resourceMullvadWireguard) Update(ctx context.Context, req resource.Upda
 }
 
 func (r *resourceMullvadWireguard) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	r.configureAccount(ctx, req.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 

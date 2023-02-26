@@ -63,7 +63,8 @@ func (r *resourceMullvadAccount) Schema(ctx context.Context, req resource.Schema
 }
 
 func (r *resourceMullvadAccount) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("account_id"), req, resp)
+	r.setAccount(ctx, resp.Private, req.ID, &resp.Diagnostics)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 
 func (r *resourceMullvadAccount) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -88,9 +89,12 @@ func (r *resourceMullvadAccount) Create(ctx context.Context, req resource.Create
 	data.populateFrom(acc, &resp.Diagnostics)
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
+
+	r.setAccount(ctx, resp.Private, acc.Token, &resp.Diagnostics)
 }
 
 func (r *resourceMullvadAccount) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	r.configureAccount(ctx, resp.Private, &resp.Diagnostics)
 	var diags diag.Diagnostics
 	var data MullvadAccountModel
 
@@ -100,7 +104,6 @@ func (r *resourceMullvadAccount) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
-	r.client.AccountID = data.ID.String()
 	acc, err := r.client.Login()
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to log in", err.Error())
