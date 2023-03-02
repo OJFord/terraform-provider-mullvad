@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -14,31 +13,18 @@ import (
 )
 
 type datasourceMullvadAccount struct {
-	client *mullvadapi.Client
+	mullvadResource
 }
 
-func (d datasourceMullvadAccount) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*mullvadapi.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected type",
-			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
+func (d *datasourceMullvadAccount) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.configureFromProvider(req.ProviderData, &resp.Diagnostics)
 }
 
-func (d datasourceMullvadAccount) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *datasourceMullvadAccount) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_account"
 }
 
-func (d datasourceMullvadAccount) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *datasourceMullvadAccount) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Information about the Mullvad account.",
 		Attributes: map[string]schema.Attribute{
@@ -96,7 +82,7 @@ func (data *MullvadAccountModel) populateFrom(acc *mullvadapi.Account, diags *di
 	data.SubscriptionMethod = types.StringValue(acc.Subscription.PaymentMethod)
 }
 
-func (d datasourceMullvadAccount) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *datasourceMullvadAccount) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var diags diag.Diagnostics
 	var data MullvadAccountModel
 

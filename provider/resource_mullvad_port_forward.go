@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -12,36 +11,23 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-
-	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
 
 type resourceMullvadPortForward struct {
-	client *mullvadapi.Client
+	mullvadResource
 }
 
-func (r resourceMullvadPortForward) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
+var _ resource.ResourceWithConfigure = &resourceMullvadPortForward{}
 
-	client, ok := req.ProviderData.(*mullvadapi.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected type",
-			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
+func (r *resourceMullvadPortForward) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.configureFromProvider(req.ProviderData, &resp.Diagnostics)
 }
 
-func (r resourceMullvadPortForward) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *resourceMullvadPortForward) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_port_forward"
 }
 
-func (r resourceMullvadPortForward) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *resourceMullvadPortForward) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Provides a Mullvad port forward resource. This can be used to create, read, update, and delete forwarding ports on your Mullvad account.",
 		Attributes: map[string]schema.Attribute{
@@ -86,7 +72,7 @@ type MullvadPortForwardModel struct {
 	Port          types.Int64  `tfsdk:"port"`
 }
 
-func (r resourceMullvadPortForward) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *resourceMullvadPortForward) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 
@@ -115,7 +101,7 @@ func (r resourceMullvadPortForward) Create(ctx context.Context, req resource.Cre
 	resp.State.SetAttribute(ctx, path.Root("id"), strconv.Itoa(*addedPort))
 }
 
-func (r resourceMullvadPortForward) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *resourceMullvadPortForward) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 
@@ -138,14 +124,14 @@ func (r resourceMullvadPortForward) Read(ctx context.Context, req resource.ReadR
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r resourceMullvadPortForward) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *resourceMullvadPortForward) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	resp.Diagnostics.AddError(
 		"This should not happen",
 		"All attrs are supposed to force a replacement, since we cannot update in-place.",
 	)
 }
 
-func (r resourceMullvadPortForward) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *resourceMullvadPortForward) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var diags diag.Diagnostics
 	var data MullvadPortForwardModel
 

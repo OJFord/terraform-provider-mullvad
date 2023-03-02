@@ -13,31 +13,18 @@ import (
 )
 
 type datasourceMullvadCity struct {
-	client *mullvadapi.Client
+	mullvadResource
 }
 
-func (d datasourceMullvadCity) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*mullvadapi.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected type",
-			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
+func (d *datasourceMullvadCity) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.configureFromProvider(req.ProviderData, &resp.Diagnostics)
 }
 
-func (d datasourceMullvadCity) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *datasourceMullvadCity) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_city"
 }
 
-func (d datasourceMullvadCity) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *datasourceMullvadCity) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Mullvad location codes by city name.",
 		Attributes: map[string]schema.Attribute{
@@ -80,7 +67,7 @@ func (data *MullvadCityModel) populateFrom(city *mullvadapi.CityResponse, diags 
 	data.CityCode = types.StringValue(codes[1])
 }
 
-func (d datasourceMullvadCity) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *datasourceMullvadCity) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var diags diag.Diagnostics
 	var data MullvadCityModel
 

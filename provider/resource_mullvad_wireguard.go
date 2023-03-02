@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -16,31 +15,21 @@ import (
 )
 
 type resourceMullvadWireguard struct {
-	client *mullvadapi.Client
+	mullvadResource
 }
 
-func (r resourceMullvadWireguard) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
+var _ resource.ResourceWithConfigure = &resourceMullvadWireguard{}
+var _ resource.ResourceWithImportState = &resourceMullvadWireguard{}
 
-	client, ok := req.ProviderData.(*mullvadapi.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected type",
-			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
-		)
-		return
-	}
-
-	r.client = client
+func (r *resourceMullvadWireguard) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	r.configureFromProvider(req.ProviderData, &resp.Diagnostics)
 }
 
-func (r resourceMullvadWireguard) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+func (r *resourceMullvadWireguard) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_wireguard"
 }
 
-func (r resourceMullvadWireguard) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *resourceMullvadWireguard) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Provides a Mullvad WireGuard resource. This can be used to create, read, and delete WireGuard keys on your Mullvad account.",
 
@@ -91,11 +80,11 @@ func (data *MullvadWireguardModel) populateFrom(ctx context.Context, key *mullva
 	diags.Append(diags_...)
 }
 
-func (r resourceMullvadWireguard) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *resourceMullvadWireguard) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("public_key"), req, resp)
 }
 
-func (r resourceMullvadWireguard) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+func (r *resourceMullvadWireguard) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 
@@ -117,7 +106,7 @@ func (r resourceMullvadWireguard) Create(ctx context.Context, req resource.Creat
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r resourceMullvadWireguard) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+func (r *resourceMullvadWireguard) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 
@@ -144,14 +133,14 @@ func (r resourceMullvadWireguard) Read(ctx context.Context, req resource.ReadReq
 	resp.Diagnostics.Append(diags...)
 }
 
-func (r resourceMullvadWireguard) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+func (r *resourceMullvadWireguard) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	resp.Diagnostics.AddError(
 		"This should not happen",
 		"All attrs are supposed to force a replacement, since we cannot update in-place.",
 	)
 }
 
-func (r resourceMullvadWireguard) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+func (r *resourceMullvadWireguard) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var diags diag.Diagnostics
 	var data MullvadWireguardModel
 

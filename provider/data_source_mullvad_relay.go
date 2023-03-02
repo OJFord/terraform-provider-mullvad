@@ -13,31 +13,18 @@ import (
 )
 
 type datasourceMullvadRelay struct {
-	client *mullvadapi.Client
+	mullvadResource
 }
 
-func (d datasourceMullvadRelay) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*mullvadapi.Client)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected type",
-			fmt.Sprintf("Expected *mullvadapi.Client, got: %T.", req.ProviderData),
-		)
-		return
-	}
-
-	d.client = client
+func (d *datasourceMullvadRelay) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.configureFromProvider(req.ProviderData, &resp.Diagnostics)
 }
 
-func (d datasourceMullvadRelay) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *datasourceMullvadRelay) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_relay"
 }
 
-func (d datasourceMullvadRelay) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *datasourceMullvadRelay) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Optionally filtered list of Mullvad servers.",
 
@@ -200,7 +187,7 @@ type MullvadRelayModel struct {
 	Relays []MullvadRelayRelayModel `tfsdk:"relays"`
 }
 
-func (d datasourceMullvadRelay) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *datasourceMullvadRelay) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var diags diag.Diagnostics
 	var data MullvadRelayModel
 
