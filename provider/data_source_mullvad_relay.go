@@ -2,12 +2,12 @@ package provider
 
 import (
 	"context"
-	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
@@ -225,10 +225,14 @@ func (d datasourceMullvadRelay) Read(ctx context.Context, req datasource.ReadReq
 
 	data.Relays = make([]MullvadRelayRelayModel, 0)
 	for _, relay := range *relays {
-		log.Printf("[INFO] Checking filter against %s", relay.HostName)
+		tflog.Info(ctx, "Checking filter against", map[string]interface{}{
+			"hostname": relay.HostName,
+		})
 
 		if (data.Filter.CityName.ValueString() == "" || relay.CityName == data.Filter.CityName.ValueString()) && (data.Filter.CountryCode.ValueString() == "" || relay.CountryCode == data.Filter.CountryCode.ValueString()) {
-			log.Printf("[INFO] Match found: %s", relay.HostName)
+			tflog.Info(ctx, "Match found", map[string]interface{}{
+				"hostname": relay.HostName,
+			})
 
 			m := MullvadRelayRelayModel{}
 			m.populateFrom(ctx, &relay, &resp.Diagnostics)

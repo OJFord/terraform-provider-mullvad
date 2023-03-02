@@ -3,12 +3,12 @@ package provider
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 
 	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
@@ -95,7 +95,9 @@ func (r resourceMullvadAccount) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	log.Printf("Created %s", acc.Token)
+	tflog.Info(ctx, "Created account", map[string]interface{}{
+		"account": acc.Token,
+	})
 	data.populateFrom(acc, &resp.Diagnostics)
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -118,7 +120,9 @@ func (r resourceMullvadAccount) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	log.Printf("Reading %s", data.ID)
+	tflog.Info(ctx, "Reading", map[string]interface{}{
+		"id": data.ID,
+	})
 	data.populateFrom(acc, &resp.Diagnostics)
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)

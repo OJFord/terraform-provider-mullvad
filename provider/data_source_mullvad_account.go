@@ -3,13 +3,14 @@ package provider
 import (
 	"context"
 	"fmt"
-	"log"
 
-	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+
+	"github.com/OJFord/terraform-provider-mullvad/mullvadapi"
 )
 
 type datasourceMullvadAccount struct {
@@ -105,7 +106,9 @@ func (d datasourceMullvadAccount) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	log.Printf("Reading %s", data.ID)
+	tflog.Info(ctx, "Reading", map[string]interface{}{
+		"id": data.ID,
+	})
 	d.client.AccountID = data.ID.String()
 	acc, err := d.client.Login()
 	if err != nil {
