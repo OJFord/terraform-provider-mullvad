@@ -3,7 +3,7 @@ module github.com/OJFord/terraform-provider-mullvad
 go 1.20
 
 require (
-	github.com/go-resty/resty/v2 v2.8.0
+	github.com/go-resty/resty/v2 v2.9.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.29.0
 	github.com/mitchellh/mapstructure v1.5.0
 )
