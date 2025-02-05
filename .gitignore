@@ -1,2 +1,6 @@
 /dist/
 /terraform-provider-mullvad
+/terraformrc
+terraform.tfstate
+.terraform
+.terraform.lock.hcl
