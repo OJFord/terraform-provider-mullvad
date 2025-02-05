@@ -30,5 +30,3 @@ data "mullvad_account" "example" {
 - `max_forwarding_ports` (Number) Maximum number of forwarding ports which may be configured.
 - `max_wireguard_peers` (Number) Maximum number of WireGuard peers which may be configured.
 - `subscription_method` (String) Method used to pay the subscription, if there is one.
-
-

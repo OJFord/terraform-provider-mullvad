@@ -51,5 +51,3 @@ resource "wireguard_asymmetric_key" "target_peer" {
 
 - `id` (String) The ID of this resource.
 - `port` (Number) The integer value of the port that will be forwarded.
-
-

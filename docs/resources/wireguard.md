@@ -35,5 +35,3 @@ resource "mullvad_wireguard" "my_peer" {
 - `ipv4_address` (String) The IPv4 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
 - `ipv6_address` (String) The IPv6 address the registered peer may use (its `AllowedIPs` value to Mullvad's peers).
 - `ports` (List of Number) The ports forwarded for the registered peer.
-
-

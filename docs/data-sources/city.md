@@ -37,5 +37,3 @@ locals {
 - `city_code` (String) The 3-letter code used to refer to the city in Mullvad's API.
 - `country_code` (String) The ISO3166-1 Alpha-2 country code.
 - `id` (String) The ID of this resource.
-
-

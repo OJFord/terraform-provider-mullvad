@@ -75,5 +75,3 @@ Read-Only:
 - `ssh_fingerprint_sha256` (String)
 - `status_messages` (List of String)
 - `type` (String)
-
-
